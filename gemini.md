@@ -7,18 +7,30 @@ To provide a distraction-free, high-contrast, and bilingual interface for 6-inch
 
 ## Architecture Philosophy
 - **Dynamic Multi-Tenancy**: Centralized room and user management via a SQLite database, allowing a single deployment to serve multiple devices with diverse configurations.
+- **Role-Based Access Control (RBAC)**: Supports multiple admin accounts and standard users. Admins manage the entire system (rooms/users), while standard users can log in to manage their own personal calendars and security settings.
 - **Privacy First**: All calendar URLs are stored encrypted (AES-256-CBC). Personal schedules are protected behind unique access tokens.
-- **Contextual UI**: Adaptive terminology ("Meeting" vs "Event") and layouts (Room, Dashboard, Grid) based on the target audience.
+- **Hardened Security**:
+    - **SSRF Protection**: Strict URL validation for all external feeds (iCal/RSS).
+    - **Predictive Defense**: Salted cache filenames to prevent unauthorized artifact guessing.
+    - **Self-Diagnostics**: Automated dashboard check to verify server-side directory protection (.htaccess/data-access).
+- **Contextual UI**: Adaptive terminology ("Meeting" vs "Event") and layouts (Room, Dashboard, Grid) based on the target audience. Supports personalized "Now" status labels via a "Status Label" (display_name) override for both rooms and users.
 - **Deep Diagnostics**: Native support for Visionect telemetry (IP, Battery, Signal) via headers and the `okular` JS object.
-- **Resilient Navigation**: Server-side caching combined with client-side state tracking allows users to browse up to 30 days of history and future schedules.
+- **Resilient Navigation**: Server-side caching combined with client-side state tracking allows users to browse up to 30 days of history and future schedules. Navigation controls are context-aware (only shown in Grid view).
+- **Zero-Cache Strategy**: Core dynamic pages and API endpoints enforce strict `no-cache` headers to prevent stale data served by CDNs (Cloudflare) or browsers.
+- **Automated Cache Management**: The system automatically invalidates and refreshes local data caches whenever configurations are changed via the dashboard.
 
 ## Key Subsystems
-- **Parser**: A robust iCal parser (`web/app/calendar.php`) that merges multiple feeds, handles DATE-only holidays, and corrects line folding and timezone shifts.
-- **Weather Engine**: A custom local weather backend (`web/app/weather.php`) using Open-Meteo with 8-day forecasting and integrated city searching.
+- **Parser**: A robust iCal parser (`web/app/calendar.php`) that merges multiple feeds, handles DATE-only holidays, corrects line folding, and exports Unix timestamps for precise frontend filtering.
+- **Weather Engine**: A custom local weather backend (`web/app/weather.php`) using Open-Meteo with 8-day forecasting and integrated city searching. Includes strict input sanitization.
 - **Aggregator**: A language-aware RSS aggregator (`web/app/rss.php`) serving shuffled, paged headlines.
-- **Management Dashboard**: A unified UI (`web/app/manage.php`) for managing rooms, users, horizons, and encrypted feeds.
+- **Management Dashboard**: A unified UI (`web/app/manage.php`) for managing rooms, users, horizons, and encrypted feeds with integrated login and RBAC.
 
 ## Roadmap & Expansion
 - **Interactive Occupancy**: Touch-based room check-ins and auto-release logic.
 - **Google Workspace API**: Direct integration for private resources and native booking.
 - **Power Optimization**: Implementation of scheduled "Deep Sleep" states to extend e-ink lifespan.
+
+## New Context & Patterns (Future Use)
+The following technical patterns have been provided for upcoming documentation or integrations:
+- **Markdown Rendering**: Patterns for React-based and standard JS Markdown parsing (using `marked`).
+- **Knowledge Integration**: Metadata management and parsing logic for external documentation (AWS/Terraform contexts).
