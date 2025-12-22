@@ -35,6 +35,14 @@ if ($roomId === 'personal' && !empty($_GET['cal'])) {
     $urls = array_merge($urls, $overrides);
 }
 
+// Security: Validate URLs (SSRF Protection)
+function isValidUrl($url) {
+    $parsed = parse_url($url);
+    return isset($parsed['scheme'], $parsed['host']) && 
+           ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
+}
+$urls = array_filter($urls, 'isValidUrl');
+
 $CACHE_TTL  = $calConfig['cache_ttl'];
 $pastDays = (int)($roomConfig['past_horizon'] ?? 30);
 $futureDays = (int)($roomConfig['future_horizon'] ?? 30);

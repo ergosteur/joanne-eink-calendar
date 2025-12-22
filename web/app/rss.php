@@ -18,6 +18,13 @@ if (empty($urls)) {
     exit;
 }
 
+// Security: Validate URLs (SSRF Protection)
+$urls = array_filter($urls, function($url) {
+    $parsed = parse_url($url);
+    return isset($parsed['scheme'], $parsed['host']) && 
+           ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
+});
+
 function fetchCached($url, $ttl) {
     $cacheFile = __DIR__ . "/../data/rss.cache." . md5($url) . ".xml";
     

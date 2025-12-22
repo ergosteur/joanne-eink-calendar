@@ -8,8 +8,8 @@ $db = new LibreDb($config);
 header("Content-Type: application/json");
 header("Cache-Control: no-store");
 
-$lat = $_GET['lat'] ?? 43.65; // Default Toronto
-$lon = $_GET['lon'] ?? -79.38;
+$lat = (float)($_GET['lat'] ?? 43.65); // Default Toronto
+$lon = (float)($_GET['lon'] ?? -79.38);
 $city = $_GET['city'] ?? 'Weather';
 
 // Cache per location
