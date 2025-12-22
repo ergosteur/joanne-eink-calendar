@@ -63,6 +63,21 @@ Point your e-ink device to the absolute URLs provided in the management dashboar
 - **Navigation**: Use the `<` and `>` buttons in the header to browse weeks.
 - **Reset**: Tap the **Time/Today** button on the far left to return to the current period.
 
+## URL Parameter Overrides
+
+You can override most configuration settings via URL parameters for testing or specific device needs:
+
+- **`room`**: Load a specific room configuration by its key (e.g., `?room=boardroom`).
+- **`userid`**: Load a personal schedule using an access token (e.g., `?room=personal&userid=YOUR_TOKEN`).
+- **`view`**: Force a layout mode (`room`, `dashboard`, or `grid`).
+- **`lang`**: Force a language (`en` or `fr`).
+- **`show_rss`**: Toggle the news ticker (`1` or `0`).
+- **`show_weather`**: Toggle the weather widget (`1` or `0`).
+- **`cal`**: (Personal view only) Append an additional iCal feed URL. Can be used multiple times.
+- **`dev_ip` / `dev_batt` / `dev_sig`**: Manually provide telemetry data (normally handled by Visionect headers).
+
+Example: `http://your-server/index.php?room=bedroom&view=grid&lang=en&show_rss=0`
+
 ## Security Notes
 
 - Direct browser access to the `data/` folder is blocked by `.htaccess`.
