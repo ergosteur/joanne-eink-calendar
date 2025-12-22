@@ -115,38 +115,92 @@ if (!isset($_SESSION['user_id'])) {
 // Admin / User Actions
 if (isset($_POST['add_user']) && $_SESSION['is_admin']) {
     $token = bin2hex(random_bytes(16));
-    $stmt = $pdo->prepare("INSERT INTO users (username, access_token) VALUES (?, ?)");
+    $hash = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $isAdmin = isset($_POST['is_admin']) ? 1 : 0;
+    
+    $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, access_token, is_admin) VALUES (?, ?, ?, ?)");
     try {
-        $stmt->execute([$_POST['username'], $token]);
+        $stmt->execute([$_POST['username'], $hash, $token, $isAdmin]);
         $message = "User created! Access token: $token";
     } catch (Exception $e) { $error = "Username already exists."; }
 }
 
 if (isset($_POST['save_user_view'])) {
-    $stmt = $pdo->prepare("UPDATE users SET view = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
-    $stmt->execute([$_POST['view'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
-    clearAllCaches();
-    $message = "User preferences updated and caches cleared.";
+    if (!$_SESSION['is_admin'] && $_SESSION['user_id'] != $_POST['user_id']) {
+        $error = "Unauthorized action.";
+    } else {
+        $stmt = $pdo->prepare("UPDATE users SET view = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
+        $stmt->execute([$_POST['view'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
+        clearAllCaches();
+        $message = "User preferences updated and caches cleared.";
+    }
+}
+
+if (isset($_POST['save_user_security'])) {
+    if ($_SESSION['is_admin'] || $_SESSION['user_id'] == $_POST['user_id']) {
+        $updates = [];
+        $params = [];
+        
+        if (!empty($_POST['new_password'])) {
+            $updates[] = "password_hash = ?";
+            $params[] = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+        }
+        
+        if ($_SESSION['is_admin'] && $_SESSION['user_id'] != $_POST['user_id']) {
+            $isAdmin = isset($_POST['is_admin']) ? 1 : 0;
+            $updates[] = "is_admin = ?";
+            $params[] = $isAdmin;
+        }
+
+        if (!empty($updates)) {
+            $params[] = $_POST['user_id'];
+            $sql = "UPDATE users SET " . implode(", ", $updates) . " WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $message = "User security settings updated.";
+        }
+    }
 }
 
 if (isset($_POST['save_cal'])) {
-    $encrypted = $db->encrypt($_POST['url']);
+    // Auth Check
+    $target_user_id = $_POST['user_id'];
     if (!empty($_POST['cal_id'])) {
-        $stmt = $pdo->prepare("UPDATE calendars SET encrypted_url = ? WHERE id = ?");
-        $stmt->execute([$encrypted, $_POST['cal_id']]);
-        $message = "Calendar updated.";
-    } else {
-        $stmt = $pdo->prepare("INSERT INTO calendars (user_id, encrypted_url) VALUES (?, ?)");
-        $stmt->execute([$_POST['user_id'], $encrypted]);
-        $message = "Calendar added.";
+         $stmt = $pdo->prepare("SELECT user_id FROM calendars WHERE id = ?");
+         $stmt->execute([$_POST['cal_id']]);
+         $cal = $stmt->fetch();
+         if ($cal) $target_user_id = $cal['user_id'];
     }
-    clearAllCaches();
+    
+    if (!$_SESSION['is_admin'] && $_SESSION['user_id'] != $target_user_id) {
+        $error = "Unauthorized action.";
+    } else {
+        $encrypted = $db->encrypt($_POST['url']);
+        if (!empty($_POST['cal_id'])) {
+            $stmt = $pdo->prepare("UPDATE calendars SET encrypted_url = ? WHERE id = ?");
+            $stmt->execute([$encrypted, $_POST['cal_id']]);
+            $message = "Calendar updated.";
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO calendars (user_id, encrypted_url) VALUES (?, ?)");
+            $stmt->execute([$_POST['user_id'], $encrypted]);
+            $message = "Calendar added.";
+        }
+        clearAllCaches();
+    }
 }
 
 if (isset($_GET['delete_cal'])) {
-    $stmt = $pdo->prepare("DELETE FROM calendars WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT user_id FROM calendars WHERE id = ?");
     $stmt->execute([$_GET['delete_cal']]);
-    clearAllCaches();
+    $cal = $stmt->fetch();
+
+    if ($cal && ($_SESSION['is_admin'] || $_SESSION['user_id'] == $cal['user_id'])) {
+        $stmt = $pdo->prepare("DELETE FROM calendars WHERE id = ?");
+        $stmt->execute([$_GET['delete_cal']]);
+        clearAllCaches();
+    } else {
+        $error = "Unauthorized action.";
+    }
 }
 
 // Room Management (Admin Only)
@@ -313,8 +367,12 @@ $baseUrl = "$protocol://$host$dir/";
         <?php if ($_SESSION['is_admin']): ?>
         <div class="card">
             <h3>Create New User</h3>
-            <form method="POST" class="form-grid">
+            <form method="POST" class="form-grid" style="align-items: center;">
                 <input type="text" name="username" placeholder="Username (e.g. Matt)" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:0.9rem;">
+                    <input type="checkbox" name="is_admin"> Admin User
+                </label>
                 <button type="submit" name="add_user" class="btn">Create User</button>
             </form>
         </div>
@@ -335,6 +393,22 @@ $baseUrl = "$protocol://$host$dir/";
                     <label>Personal URL (Copy to Device)</label>
                     <input type="text" class="url-box" value="<?= $baseUrl ?>index.php?room=personal&userid=<?= $user['access_token'] ?>" readonly onclick="this.select()">
                 </div>
+
+                <details style="margin-top:1rem; margin-bottom:1rem; background:#f8f8f8; padding:10px; border-radius:8px; border:1px solid #eee;">
+                    <summary style="cursor:pointer; font-weight:600; font-size:0.85rem; color:var(--muted); text-transform:uppercase;">Security Settings</summary>
+                    <form method="POST" style="margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                        <input type="password" name="new_password" placeholder="Set New Password" style="flex:1; min-width:200px;">
+                        
+                        <?php if($_SESSION['is_admin'] && $_SESSION['user_id'] != $user['id']): ?>
+                            <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:0.9rem;">
+                                <input type="checkbox" name="is_admin" <?= $user['is_admin'] ? 'checked' : '' ?>> Is Admin
+                            </label>
+                        <?php endif; ?>
+                        
+                        <button type="submit" name="save_user_security" class="btn btn-muted">Update Security</button>
+                    </form>
+                </details>
 
                 <form method="POST" style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #eee;">
                     <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
