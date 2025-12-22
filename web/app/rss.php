@@ -5,7 +5,9 @@ $config = require __DIR__ . "/../data/config.php";
 $rssConfig = $config['rss'];
 
 header("Content-Type: application/json");
-header("Cache-Control: no-store");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 
 $lang = $_GET['lang'] ?? 'en';
 $urls = array_merge(

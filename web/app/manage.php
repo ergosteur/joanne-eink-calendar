@@ -5,6 +5,11 @@ session_start();
 $config = require __DIR__ . "/../data/config.php";
 require_once __DIR__ . "/../lib/db.php";
 
+// Prevent caching of the management dashboard
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 $db = new LibreDb($config);
 $pdo = $db->getPdo();
 

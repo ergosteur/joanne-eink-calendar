@@ -6,7 +6,9 @@ require_once __DIR__ . "/../lib/db.php";
 $db = new LibreDb($config);
 
 header("Content-Type: application/json");
-header("Cache-Control: no-store");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 
 $lat = (float)($_GET['lat'] ?? 43.65); // Default Toronto
 $lon = (float)($_GET['lon'] ?? -79.38);
