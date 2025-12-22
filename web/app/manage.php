@@ -19,7 +19,109 @@ function clearAllCaches() {
     }
 }
 
-// ... existing code ...
+// State for editing
+$editRoom = null;
+if (isset($_GET['edit_room'])) {
+    $stmt = $pdo->prepare("SELECT * FROM rooms WHERE id = ?");
+    $stmt->execute([$_GET['edit_room']]);
+    $editRoom = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// Check if any admin exists
+$stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_admin = 1");
+$adminExists = $stmt->fetchColumn() > 0;
+
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: manage.php");
+    exit;
+}
+
+// SETUP FLOW: First time admin creation
+if (!$adminExists) {
+    if (isset($_POST['setup'])) {
+        if ($_POST['setup_password'] === $config['security']['setup_password']) {
+            $token = bin2hex(random_bytes(16));
+            $hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, access_token, is_admin) VALUES (?, ?, ?, 1)");
+            $stmt->execute([$_POST['username'], $hash, $token]);
+            $_SESSION['user_id'] = $pdo->lastInsertId();
+            $_SESSION['is_admin'] = true;
+            $message = "Setup complete! Admin account created.";
+            $adminExists = true;
+        } else {
+            $error = "Incorrect Setup Password.";
+        }
+    }
+}
+// LOGIN FLOW
+else if (!isset($_SESSION['user_id'])) {
+    if (isset($_POST['login'])) {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$_POST['username']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($_POST['password'], $user['password_hash'])) {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['is_admin'] = (bool)$user['is_admin'];
+        } else {
+            $error = "Invalid username or password.";
+        }
+    }
+}
+
+// ACCESS CHECK
+if (!$adminExists) {
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head><title>LibreJoanne Setup</title><style>body{font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; background:#f0f0f0; margin:0;} form{background:#fff; padding:2rem; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08); width:320px;} input{width:100%; padding:10px; margin:10px 0; box-sizing:border-box; border:1px solid #ddd; border-radius:6px;}</style></head>
+    <body>
+        <form method="POST">
+            <h2 style="margin-top:0;">Initial Setup</h2>
+            <p style="color:#666; font-size:0.9rem;">Enter the setup password from config.php to create your admin account.</p>
+            <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
+            <input type="password" name="setup_password" placeholder="Setup Password" required>
+            <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+            <input type="text" name="username" placeholder="New Admin Username" required>
+            <input type="password" name="new_password" placeholder="New Admin Password" required>
+            <button type="submit" name="setup" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Complete Setup</button>
+        </form>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+if (!isset($_SESSION['user_id'])) {
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head><title>LibreJoanne Login</title><style>body{font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; background:#f0f0f0; margin:0;} form{background:#fff; padding:2rem; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08); width:320px;} input{width:100%; padding:10px; margin:10px 0; box-sizing:border-box; border:1px solid #ddd; border-radius:6px;}</style></head>
+    <body>
+        <form method="POST">
+            <h2 style="margin-top:0;">Login</h2>
+            <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
+            <input type="text" name="username" placeholder="Username" required autofocus>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit" name="login" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Login</button>
+        </form>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+// Admin / User Actions
+if (isset($_POST['add_user']) && $_SESSION['is_admin']) {
+    $token = bin2hex(random_bytes(16));
+    $stmt = $pdo->prepare("INSERT INTO users (username, access_token) VALUES (?, ?)");
+    try {
+        $stmt->execute([$_POST['username'], $token]);
+        $message = "User created! Access token: $token";
+    } catch (Exception $e) { $error = "Username already exists."; }
+}
+
 if (isset($_POST['save_user_view'])) {
     $stmt = $pdo->prepare("UPDATE users SET view = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
     $stmt->execute([$_POST['view'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
@@ -32,12 +134,13 @@ if (isset($_POST['save_cal'])) {
     if (!empty($_POST['cal_id'])) {
         $stmt = $pdo->prepare("UPDATE calendars SET encrypted_url = ? WHERE id = ?");
         $stmt->execute([$encrypted, $_POST['cal_id']]);
+        $message = "Calendar updated.";
     } else {
         $stmt = $pdo->prepare("INSERT INTO calendars (user_id, encrypted_url) VALUES (?, ?)");
         $stmt->execute([$_POST['user_id'], $encrypted]);
+        $message = "Calendar added.";
     }
     clearAllCaches();
-    $message = "Calendars updated and caches cleared.";
 }
 
 if (isset($_GET['delete_cal'])) {
@@ -58,6 +161,7 @@ if ($_SESSION['is_admin']) {
                 $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
                 $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
             ]);
+            $message = "Room updated!";
         } else {
             $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             try {
@@ -67,10 +171,10 @@ if ($_SESSION['is_admin']) {
                     $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
                     $_POST['past_horizon'], $_POST['future_horizon']
                 ]);
+                $message = "Room created!";
             } catch (Exception $e) { $error = "Room key already exists."; }
         }
         clearAllCaches();
-        $message = "Room saved and caches cleared.";
         $editRoom = null;
     }
 
@@ -306,7 +410,7 @@ $baseUrl = "$protocol://$host$dir/";
                                     </form>
                                 <?php else: ?>
                                     <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:10px;">
-                                        <small><?= htmlspecialchars($decryptedUrl) ?></small>
+                                        <input type="text" class="url-box" value="<?= htmlspecialchars($decryptedUrl) ?>" readonly onclick="this.select()" style="margin:0; padding:4px; font-size:0.75rem;">
                                     </div>
                                     <div class="actions">
                                         <a href="?tab=users&edit_cal=<?= $cal['id'] ?>">Edit</a>
@@ -338,7 +442,7 @@ $baseUrl = "$protocol://$host$dir/";
                     </div>
                     <div class="form-group">
                         <label>Display Name</label>
-                        <input type="text" name="name" placeholder="The Boardroom" value="<?= $editRoom['name'] ?? '' ?>" required>
+                        <input type="text" name="name" placeholder="The Boardroom" value="<?= htmlspecialchars((string)($editRoom['name'] ?? '')) ?>" required>
                     </div>
                 </div>
                 
@@ -404,21 +508,23 @@ $baseUrl = "$protocol://$host$dir/";
         <h2>Managed Rooms</h2>
         <?php foreach ($rooms as $room): ?>
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div>
-                        <h3 style="margin:0; border:0; padding:0;"><?= htmlspecialchars($room['name']) ?> <span class="badge"><?= htmlspecialchars($room['room_key']) ?></span></h3>
-                        <div style="margin-top:10px;">
-                            <label><small>Display URL:</small></label>
-                            <input type="text" class="url-box" value="<?= $baseUrl ?>index.php?room=<?= urlencode($room['room_key']) ?>" readonly onclick="this.select()" style="padding:6px; font-size:0.75rem;">
-                        </div>
-                    </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                    <h3 style="margin:0; border:0; padding:0;"><?= htmlspecialchars($room['name']) ?> <span class="badge"><?= htmlspecialchars($room['room_key']) ?></span></h3>
                     <div class="actions">
                         <a href="?tab=rooms&edit_room=<?= $room['id'] ?>">Edit</a>
                         <a href="?tab=rooms&delete_room=<?= $room['id'] ?>" class="delete" onclick="return confirm('Delete room?')">Delete</a>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label><small>Room Display URL:</small></label>
+                    <input type="text" class="url-box" value="<?= $baseUrl ?>index.php?room=<?= urlencode($room['room_key']) ?>" readonly onclick="this.select()">
+                </div>
             </div>
         <?php endforeach; ?>
+
+        <div class="card" style="background:#eee;">
+            <p><strong>Note:</strong> Rooms defined in <code>config.php</code> are still active but will be overridden by database rooms with the same key.</p>
+        </div>
     <?php endif; ?>
 </body>
 </html>
