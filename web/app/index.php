@@ -13,7 +13,7 @@ if (!$roomConfig) {
 
 $lang = $_GET['lang'] ?? $config['ui']['lang'];
 $view = $roomConfig['view'] ?? 'room';
-$displayName = "";
+$displayName = $roomConfig['display_name'] ?? "";
 
 // If it's a personal view with a valid token, let the user's preference override the view
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
