@@ -61,7 +61,9 @@ header("Content-Type: application/json");
 header("Cache-Control: no-store");
 
 function getICS($url, $ttl) {
-    $cacheFile = __DIR__ . "/../data/calendar.cache." . md5($url) . ".ics";
+    // Salt the cache filename to prevent guessing from known URLs
+    $cacheSalt = "LibreJoanne_Salt_";
+    $cacheFile = __DIR__ . "/../data/calendar.cache." . md5($cacheSalt . $url) . ".ics";
     
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return file_get_contents($cacheFile);

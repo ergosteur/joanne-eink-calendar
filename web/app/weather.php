@@ -13,7 +13,8 @@ $lon = (float)($_GET['lon'] ?? -79.38);
 $city = $_GET['city'] ?? 'Weather';
 
 // Cache per location
-$cacheFile = __DIR__ . "/../data/weather.cache." . md5($lat . $lon . $city) . ".json";
+$cacheSalt = "LibreJoanne_Weather_Salt_";
+$cacheFile = __DIR__ . "/../data/weather.cache." . md5($cacheSalt . $lat . $lon . $city) . ".json";
 $ttl = 900; // 15 minutes
 
 if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
