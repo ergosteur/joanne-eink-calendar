@@ -29,8 +29,3 @@ To provide a distraction-free, high-contrast, and bilingual interface for 6-inch
 - **Interactive Occupancy**: Touch-based room check-ins and auto-release logic.
 - **Google Workspace API**: Direct integration for private resources and native booking.
 - **Power Optimization**: Implementation of scheduled "Deep Sleep" states to extend e-ink lifespan.
-
-## New Context & Patterns (Future Use)
-The following technical patterns have been provided for upcoming documentation or integrations:
-- **Markdown Rendering**: Patterns for React-based and standard JS Markdown parsing (using `marked`).
-- **Knowledge Integration**: Metadata management and parsing logic for external documentation (AWS/Terraform contexts).

@@ -3,6 +3,11 @@ $config = require __DIR__ . '/../data/config.php';
 require_once __DIR__ . '/../lib/db.php';
 $db = new LibreDb($config);
 
+// Prevent caching of the main UI
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 $roomId = $_GET['room'] ?? 'default';
 
 // Try DB first, then config.php
@@ -29,6 +34,15 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
         }
         if (!empty($user['past_horizon'])) $roomConfig['past_horizon'] = $user['past_horizon'];
         if (!empty($user['future_horizon'])) $roomConfig['future_horizon'] = $user['future_horizon'];
+    }
+}
+
+// URL Override for View
+if (isset($_GET['view'])) {
+    $v = $_GET['view'];
+    if ($v === '7daygrid') $v = 'grid';
+    if (in_array($v, ['room', 'dashboard', 'grid'])) {
+        $view = $v;
     }
 }
 
@@ -295,8 +309,6 @@ if (function_exists('getallheaders')) {
             gap: 0; /* Remove gap for seamless look */
             height: 100%;
             width: 100%;
-            border-left: 1px solid #000;
-            border-top: 1px solid #000;
         }
 
         .grid-cell {
@@ -688,7 +700,8 @@ const i18n = {
     News: "News",
     Upcoming: "Upcoming Events",
     Today: "Today",
-    AllDay: "All day"
+    AllDay: "All day",
+    MySchedule: "My Schedule"
   },
   fr: {
     AVAILABLE: "DISPONIBLE",
@@ -705,7 +718,8 @@ const i18n = {
     News: "Nouvelles",
     Upcoming: "À venir",
     Today: "Aujourd'hui",
-    AllDay: "Toute la journée"
+    AllDay: "Toute la journée",
+    MySchedule: "Mon horaire"
   }
 };
 
@@ -825,6 +839,10 @@ function renderCalendar(data) {
   const t = i18n[lang];
   const mainEl = document.querySelector(".main");
   
+  // Handle room name translation if it's a known key
+  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
+  const translatedRoomName = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
+
   if (view === "grid") {
     // Group events by day
     const days = [];
@@ -866,10 +884,12 @@ function renderCalendar(data) {
         const iconClass = wmoIcons[lastWeatherData.code] || "wi-cloudy";
         const desc = wmoCodes[lastWeatherData.code] ? wmoCodes[lastWeatherData.code][lang] : "Weather";
         todayWeatherHtml = `
-            <div class="today-weather-extra" style="color: #999;">
-                <i class="wi ${iconClass}"></i>
-                <div class="temp">${lastWeatherData.temp}${lastWeatherData.unit}</div>
-                <div style="font-size:12px; text-transform:uppercase; font-weight:700;">${desc}</div>
+            <div class="grid-weather">
+              <div class="grid-weather-label">
+                <span>${desc}</span>
+              </div>
+              <i class="wi ${iconClass}"></i>
+              <span>${lastWeatherData.temp}${lastWeatherData.unit}</span>
             </div>
         `;
     }
@@ -884,19 +904,15 @@ function renderCalendar(data) {
             <div style="font-size: 16px; color: #666; text-transform: uppercase;">${displayName || t.Now}</div>
             <div style="font-size: 24px; color: #000; margin-top: 2px;">${fullDayName}</div>
         </div>
-        <div class="today-detail">
-            <div class="today-events" style="${todayWeatherHtml === '' ? 'border-right: none;' : ''}">
-                <ul class="grid-event-list">
-                    ${todayObj.events.slice(0, 5).map(e => `
-                        <li class="grid-event-item" title="${e.summary}">
-                            <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time}</span>
-                            ${e.summary}
-                        </li>
-                    `).join('')}
-                </ul>
-            </div>
-            ${todayWeatherHtml}
-        </div>
+        <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
+            ${todayObj.events.slice(0, 5).map(e => `
+                <li class="grid-event-item" title="${e.summary}">
+                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time}</span>
+                    ${e.summary}
+                </li>
+            `).join('')}
+        </ul>
+        ${todayWeatherHtml}
       </div>
     `;
 
@@ -979,7 +995,7 @@ function renderCalendar(data) {
     `;
 
     mainEl.innerHTML = `
-      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: 20px; color:#000;"><?= htmlspecialchars((string)$roomConfig['name']) ?></div>
+      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: 20px; color:#000;">${translatedRoomName}</div>
       <div class="dashboard-container">
         <div class="dashboard-left" id="dashboard-left-content">
           ${currentHtml}
@@ -996,7 +1012,7 @@ function renderCalendar(data) {
   } else {
     // Standard Room View
     mainEl.innerHTML = `
-      <div class="room-name"><?= htmlspecialchars((string)$roomConfig['name']) ?></div>
+      <div class="room-name">${translatedRoomName}</div>
       <div id="status" class="status">${t[data.status]}</div>
       <div id="event" class="event"></div>
     `;
