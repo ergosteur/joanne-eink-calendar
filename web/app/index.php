@@ -862,7 +862,7 @@ function renderCalendar(data) {
 
     // Prepare Today's Detailed Weather for merged cell
     let todayWeatherHtml = "";
-    if (showWeather && lastWeatherData) {
+    if (dateOffset === 0 && showWeather && lastWeatherData) {
         const iconClass = wmoIcons[lastWeatherData.code] || "wi-cloudy";
         const desc = wmoCodes[lastWeatherData.code] ? wmoCodes[lastWeatherData.code][lang] : "Weather";
         todayWeatherHtml = `
@@ -885,7 +885,7 @@ function renderCalendar(data) {
             <div style="font-size: 24px; color: #000; margin-top: 2px;">${fullDayName}</div>
         </div>
         <div class="today-detail">
-            <div class="today-events">
+            <div class="today-events" style="${todayWeatherHtml === '' ? 'border-right: none;' : ''}">
                 <ul class="grid-event-list">
                     ${todayObj.events.slice(0, 5).map(e => `
                         <li class="grid-event-item" title="${e.summary}">
