@@ -1,0 +1,192 @@
+<?php
+// calendar.php — Merges one or more iCal feeds and returns JSON
+
+$config = require __DIR__ . "/../data/config.php";
+require_once __DIR__ . "/../lib/db.php";
+$db = new LibreDb($config);
+
+$calConfig = $config['calendar'];
+
+$roomId = $_GET['room'] ?? 'default';
+
+// Try DB first, then config.php
+$roomConfig = $db->getRoomConfig($roomId);
+if (!$roomConfig) {
+    $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
+}
+
+date_default_timezone_set($calConfig['timezone']);
+
+$urls = is_array($roomConfig['calendar_url']) 
+        ? $roomConfig['calendar_url'] 
+        : [$roomConfig['calendar_url']];
+
+// Check for Database override via userid token
+if (!empty($_GET['userid'])) {
+    $dbUrls = $db->getCalendarsByToken($_GET['userid']);
+    if (!empty($dbUrls)) {
+        $urls = $dbUrls;
+    }
+}
+
+// Allow overriding via ?cal= only for the personal room
+if ($roomId === 'personal' && !empty($_GET['cal'])) {
+    $overrides = is_array($_GET['cal']) ? $_GET['cal'] : [$_GET['cal']];
+    $urls = array_merge($urls, $overrides);
+}
+
+$CACHE_TTL  = $calConfig['cache_ttl'];
+$pastDays = (int)($roomConfig['past_horizon'] ?? 30);
+$futureDays = (int)($roomConfig['future_horizon'] ?? 30);
+
+if ($roomId === 'personal' && !empty($_GET['userid'])) {
+    $stmt = $db->getPdo()->prepare("SELECT past_horizon, future_horizon FROM users WHERE access_token = ?");
+    $stmt->execute([$_GET['userid']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($user) {
+        $pastDays = (int)($user['past_horizon'] ?: $pastDays);
+        $futureDays = (int)($user['future_horizon'] ?: $futureDays);
+    }
+}
+
+header("Content-Type: application/json");
+header("Cache-Control: no-store");
+
+function getICS($url, $ttl) {
+    $cacheFile = __DIR__ . "/../data/calendar.cache." . md5($url) . ".ics";
+    
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
+        return file_get_contents($cacheFile);
+    }
+
+    $opts = [
+        "http" => [
+            "method" => "GET",
+            "header" => "User-Agent: LibreJoanne/1.0\r\n"
+        ]
+    ];
+    $context = stream_context_create($opts);
+    $ics = @file_get_contents($url, false, $context);
+    
+    if ($ics === false) {
+        return file_exists($cacheFile) ? file_get_contents($cacheFile) : false;
+    }
+
+    file_put_contents($cacheFile, $ics);
+    return $ics;
+}
+
+function parseIcsDate($dateStr, $timezone) {
+    // Handle DATE-only format: 20251225
+    if (strlen($dateStr) === 8) {
+        return DateTime::createFromFormat('!Ymd', $dateStr, new DateTimeZone($timezone));
+    }
+    // UTC format: 20231221T150000Z
+    if (str_ends_with($dateStr, 'Z')) {
+        return DateTime::createFromFormat('Ymd\THis\Z', $dateStr, new DateTimeZone('UTC'));
+    }
+    // Local format: 20231221T150000
+    return DateTime::createFromFormat('Ymd\THis', $dateStr, new DateTimeZone($timezone));
+}
+
+$events = [];
+
+foreach ($urls as $url) {
+    $ics = getICS($url, $CACHE_TTL);
+    if ($ics === false) continue;
+
+    // Unfold lines
+    $ics = preg_replace('/\r\n[\x20\x09]/', '', $ics);
+
+    if (preg_match_all('/BEGIN:VEVENT(.*?)END:VEVENT/s', $ics, $matches)) {
+        foreach ($matches[1] as $block) {
+            $event = [];
+            $isAllDay = false;
+            
+            // DTSTART
+            if (preg_match('/^DTSTART(?:;VALUE=(DATE)|;TZID=([^:]+))?:(\d+T?\d*Z?)/m', $block, $m)) {
+                $tzName = !empty($m[2]) ? $m[2] : $calConfig['timezone'];
+                $event['start'] = parseIcsDate($m[3], $tzName);
+                if ($m[1] === 'DATE') $isAllDay = true;
+            }
+            
+            // DTEND
+            if (preg_match('/^DTEND(?:;VALUE=(DATE)|;TZID=([^:]+))?:(\d+T?\d*Z?)/m', $block, $m)) {
+                $tzName = !empty($m[2]) ? $m[2] : $calConfig['timezone'];
+                $event['end'] = parseIcsDate($m[3], $tzName);
+            }
+            
+            // SUMMARY
+            if (preg_match('/^SUMMARY:(.*)/m', $block, $m)) {
+                $event['summary'] = trim($m[1]);
+            }
+
+            if (isset($event['start'], $event['end'], $event['summary'])) {
+                $event['is_allday'] = $isAllDay;
+                
+                // If it's a timed event, convert it from its source TZ to local TZ
+                if (!$isAllDay) {
+                    $event['start']->setTimezone(new DateTimeZone($calConfig['timezone']));
+                    $event['end']->setTimezone(new DateTimeZone($calConfig['timezone']));
+                }
+                // All-day events were parsed directly into local timezone by parseIcsDate
+                
+                $events[] = $event;
+            }
+        }
+    }
+}
+
+// Sort all merged events by START time
+usort($events, fn($a, $b) => $a["start"] <=> $b["start"]);
+
+$now = new DateTime("now", new DateTimeZone($calConfig['timezone']));
+$current = null;
+$next = null;
+$upcoming = [];
+$pastHorizon = (clone $now)->modify("-{$pastDays} days");
+$futureHorizon = (clone $now)->modify("+{$futureDays} days");
+
+foreach ($events as $event) {
+    // 1. Identify currently active meeting
+    if ($event['start'] <= $now && $event['end'] > $now) {
+        $current = $event;
+    }
+    
+    // 2. Identify the soonest future meeting (must end after now and start after or during now)
+    if ($event['start'] > $now && !$next) {
+        $next = $event;
+    }
+
+    // 3. Collect for display list
+    if ($event['end'] >= $pastHorizon && $event['start'] <= $futureHorizon) {
+        $upcoming[] = [
+            "summary" => $event["summary"],
+            "date" => $event["start"]->format("Y-m-d"),
+            "time" => $event["start"]->format("H:i"),
+            "is_today" => $event["start"]->format("Y-m-d") === $now->format("Y-m-d"),
+            "is_allday" => $event["is_allday"]
+        ];
+    }
+}
+
+// Build response
+$response = [
+    "now" => $now->format(DateTime::ATOM),
+    "status" => $current ? "IN USE" : "AVAILABLE",
+    "current" => $current ? [
+        "summary" => $current["summary"],
+        "ends" => $current["end"]->format("H:i"),
+        "is_allday" => $current["is_allday"]
+    ] : null,
+    "next" => $next ? [
+        "summary" => $next["summary"],
+        "date" => $next["start"]->format("Y-m-d"),
+        "time" => $next["start"]->format("H:i"),
+        "same_day" => $next["start"]->format("Y-m-d") === $now->format("Y-m-d"),
+        "is_allday" => $next["is_allday"]
+    ] : null,
+    "upcoming" => $upcoming
+];
+
+echo json_encode($response, JSON_PRETTY_PRINT);

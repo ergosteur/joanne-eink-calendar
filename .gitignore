@@ -1,0 +1,27 @@
+# LibreJoanne Git Ignore
+
+# Ignore actual configuration
+web/data/config.php
+
+# Ignore SQLite database and temp files
+web/data/*.db
+web/data/*.db-journal
+web/data/*.db-shm
+web/data/*.db-wal
+
+# Ignore all caches
+web/data/*.ics
+web/data/*.xml
+web/data/*.json
+
+# Ignore server logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
