@@ -567,9 +567,9 @@ if (function_exists('getallheaders')) {
         <div class="header-left">
             <div id="time-btn" class="header-btn" onclick="resetWeek();">--:--</div>
             <div class="week-nav">
-                <div class="header-btn" onclick="changeWeek(-1);">&lt;</div>
+                <?php if ($view === 'grid'): ?><div class="header-btn" onclick="changeWeek(-1);">&lt;</div><?php endif; ?>
                 <div id="date-display">—</div>
-                <div class="header-btn" onclick="changeWeek(1);">&gt;</div>
+                <?php if ($view === 'grid'): ?><div class="header-btn" onclick="changeWeek(1);">&gt;</div><?php endif; ?>
             </div>
         </div>
         
