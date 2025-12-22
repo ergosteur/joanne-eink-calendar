@@ -41,14 +41,30 @@ $baseUrl = "$protocol://$host$dir/";
 // SECURITY CHECK: Verify that /data/ is protected
 $securityWarning = "";
 if ($adminExists && isset($_SESSION['user_id'])) {
-    $testUrl = $baseUrl . "../data/security_test.txt";
-    $ctx = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
-    $testContent = @file_get_contents($testUrl, false, $ctx);
-    
-    // Check headers for 403 or 404
-    $statusLine = $http_response_header[0] ?? '';
-    if (strpos($statusLine, '200') !== false && trim($testContent) === 'canary') {
-        $securityWarning = "CRITICAL: The 'data' directory is publicly accessible! Your server is not respecting the .htaccess file. Database and Cache files are at risk.";
+    $dataDir = __DIR__ . '/../data/';
+    $cacheFiles = glob($dataDir . '*.{ics,xml,json}', GLOB_BRACE);
+
+    // If no cache exists, trigger RSS to generate one
+    if (empty($cacheFiles)) {
+        $ctx = stream_context_create(['http' => ['timeout' => 2]]);
+        @file_get_contents($baseUrl . 'rss.php?lang=en', false, $ctx);
+        $cacheFiles = glob($dataDir . '*.{ics,xml,json}', GLOB_BRACE);
+    }
+
+    if (!empty($cacheFiles)) {
+        // Pick the newest file
+        usort($cacheFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
+        $targetFile = basename($cacheFiles[0]);
+        $testUrl = $baseUrl . "../data/" . $targetFile;
+        
+        $ctx = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
+        $testContent = @file_get_contents($testUrl, false, $ctx);
+        $statusLine = $http_response_header[0] ?? '';
+
+        // If we get a 200 OK and content, it's a leak
+        if (strpos($statusLine, '200') !== false && strlen($testContent) > 0) {
+            $securityWarning = "CRITICAL: The 'data' directory is publicly accessible! .htaccess is not working. File exposed: $targetFile";
+        }
     }
 }
 
