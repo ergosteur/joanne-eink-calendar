@@ -330,7 +330,6 @@ if (function_exists('getallheaders')) {
             grid-column: span 2;
             border-right: 1px solid #000;
             border-bottom: 1px solid #000;
-            background: #fcfcfc;
         }
 
         .today-detail {
