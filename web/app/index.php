@@ -951,6 +951,10 @@ function renderCalendar(data) {
   } else if (view === "dashboard") {
     let upcomingHtml = "";
     if (data.upcoming && data.upcoming.length > 0) {
+      // Filter for strictly future events (or events currently in progress)
+      const nowTs = Math.floor(Date.now() / 1000);
+      const futureEvents = data.upcoming.filter(e => e.end_ts > nowTs);
+
       let upcomingLimit = 4;
       if (!showRss) upcomingLimit += 1;
       if (!showWeather) upcomingLimit += 2;
@@ -958,7 +962,7 @@ function renderCalendar(data) {
       upcomingHtml = `
         <div class="room-name" style="position:static; font-size:16px; margin-bottom:8px; color:#999;">${t.Upcoming}</div>
         <ul class="upcoming-list">
-          ${data.upcoming.slice(0, upcomingLimit).map(ev => `
+          ${futureEvents.slice(0, upcomingLimit).map(ev => `
             <li class="upcoming-item">
               <div class="upcoming-date">${ev.is_today ? t.Today : ev.date}</div>
               <div class="upcoming-summary">${ev.summary}</div>

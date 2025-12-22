@@ -175,7 +175,9 @@ foreach ($events as $event) {
             "date" => $event["start"]->format("Y-m-d"),
             "time" => $event["start"]->format("H:i"),
             "is_today" => $event["start"]->format("Y-m-d") === $now->format("Y-m-d"),
-            "is_allday" => $event["is_allday"]
+            "is_allday" => $event["is_allday"],
+            "start_ts" => $event["start"]->getTimestamp(),
+            "end_ts" => $event["end"]->getTimestamp()
         ];
     }
 }
