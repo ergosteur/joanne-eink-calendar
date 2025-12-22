@@ -31,6 +31,27 @@ if (isset($_GET['edit_room'])) {
 $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_admin = 1");
 $adminExists = $stmt->fetchColumn() > 0;
 
+// Dynamically detect base URL
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+$dir = dirname($_SERVER['PHP_SELF']);
+if ($dir === '/' || $dir === '\\') $dir = '';
+$baseUrl = "$protocol://$host$dir/";
+
+// SECURITY CHECK: Verify that /data/ is protected
+$securityWarning = "";
+if ($adminExists && isset($_SESSION['user_id'])) {
+    $testUrl = $baseUrl . "../data/security_test.txt";
+    $ctx = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
+    $testContent = @file_get_contents($testUrl, false, $ctx);
+    
+    // Check headers for 403 or 404
+    $statusLine = $http_response_header[0] ?? '';
+    if (strpos($statusLine, '200') !== false && trim($testContent) === 'canary') {
+        $securityWarning = "CRITICAL: The 'data' directory is publicly accessible! Your server is not respecting the .htaccess file. Database and Cache files are at risk.";
+    }
+}
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header("Location: manage.php");
@@ -246,13 +267,6 @@ if ($_SESSION['is_admin']) {
 
 $users = $pdo->query("SELECT * FROM users")->fetchAll(PDO::FETCH_ASSOC);
 $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
-
-// Dynamically detect base URL
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$host = $_SERVER['HTTP_HOST'];
-$dir = dirname($_SERVER['PHP_SELF']);
-if ($dir === '/' || $dir === '\\') $dir = '';
-$baseUrl = "$protocol://$host$dir/";
 ?>
 
 <!DOCTYPE html>
@@ -360,6 +374,7 @@ $baseUrl = "$protocol://$host$dir/";
         <?php endif; ?>
     </div>
 
+    <?php if($securityWarning) echo "<p style='color:white; background:#cc0000; padding:15px; border-radius:8px; font-weight:bold; border:2px solid #ff0000;'>$securityWarning</p>"; ?>
     <?php if($message) echo "<p style='color:green; background:#eaffea; padding:12px; border-radius:8px; font-weight:600;'>$message</p>"; ?>
     <?php if($error) echo "<p style='color:red; background:#ffeaea; padding:12px; border-radius:8px; font-weight:600;'>$error</p>"; ?>
 
