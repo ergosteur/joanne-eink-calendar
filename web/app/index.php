@@ -707,9 +707,9 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
         /* ---------- CONFIG / ROOM ---------- */
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room') || 'default';
-const view = "<?= htmlspecialchars($view) ?>";
+const view = "<?= htmlspecialchars((string)$view) ?>";
 const displayName = "<?= htmlspecialchars((string)$displayName) ?>";
-const timeFormat = "<?= htmlspecialchars($timeFormat) ?>";
+const timeFormat = "<?= htmlspecialchars((string)$timeFormat) ?>";
 const showRss = <?= $showRss ? 'true' : 'false' ?>;
 const showWeather = <?= $showWeather ? 'true' : 'false' ?>;
 const showWeatherWidget = <?= $showWeatherWidget ? 'true' : 'false' ?>;
@@ -721,7 +721,7 @@ const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
 
         /* ---------- LANGUAGE ---------- */
-let lang = "<?= htmlspecialchars($lang) ?>";
+let lang = "<?= htmlspecialchars((string)$lang) ?>";
 let lastData = null;
 let lastWeatherData = null;
 let autoLangTimer = null;
