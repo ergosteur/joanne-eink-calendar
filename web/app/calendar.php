@@ -13,6 +13,10 @@ $calConfig = $config['calendar'];
 
 $roomId = $_GET['room'] ?? 'default';
 
+if (!empty($_GET['userid'])) {
+    $roomId = 'personal';
+}
+
 // Try DB first, then config.php
 $roomConfig = $db->getRoomConfig($roomId);
 if (!$roomConfig) {

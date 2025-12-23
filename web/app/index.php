@@ -14,6 +14,11 @@ header("Pragma: no-cache");
 
 $roomId = $_GET['room'] ?? 'default';
 
+// If a userid is provided, assume it's a personal view regardless of the room parameter
+if (!empty($_GET['userid'])) {
+    $roomId = 'personal';
+}
+
 // Try DB first, then config.php
 $roomConfig = $db->getRoomConfig($roomId);
 if (!$roomConfig) {

@@ -449,7 +449,7 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
                 
                 <div class="form-group">
                     <label>Personal URL (Copy to Device)</label>
-                    <input type="text" class="url-box" value="<?= $baseUrl ?>index.php?room=personal&userid=<?= $user['access_token'] ?>" readonly onclick="this.select()">
+                    <input type="text" class="url-box" value="<?= $baseUrl ?>index.php?userid=<?= $user['access_token'] ?>" readonly onclick="this.select()">
                 </div>
 
                 <details style="margin-top:1rem; margin-bottom:1rem; background:#f8f8f8; padding:10px; border-radius:8px; border:1px solid #eee;">
