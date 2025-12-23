@@ -5,8 +5,21 @@ return [
     'rooms' => [
         'default' => [
             'name' => 'The Boardroom',
-            'calendar_url' => 'https://calendar.google.com/calendar/ical/your-calendar-id/public/basic.ics',
+            'calendar_url' => [
+                'https://calendar.google.com/calendar/ical/en-gb.canadian%23holiday%40group.v.calendar.google.com/public/basic.ics',
+                'demo.ics.php'
+            ],
             'view' => 'room',
+            'show_rss' => true,
+            'show_weather' => true,
+        ],
+        'personal' => [
+            'name' => 'My Schedule',
+            'calendar_url' => [
+                'https://calendar.google.com/calendar/ical/en-gb.canadian%23holiday%40group.v.calendar.google.com/public/basic.ics',
+                'demo.ics.php'
+            ],
+            'view' => 'dashboard',
             'show_rss' => true,
             'show_weather' => true,
         ],

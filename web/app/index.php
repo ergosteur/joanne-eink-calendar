@@ -922,7 +922,7 @@ function renderCalendar(data) {
         <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
             ${todayObj.events.slice(0, 5).map(e => `
                 <li class="grid-event-item" title="${e.summary}">
-                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time}</span>
+                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time + " — " + e.ends}</span>
                     ${e.summary}
                 </li>
             `).join('')}
@@ -957,7 +957,7 @@ function renderCalendar(data) {
           <ul class="grid-event-list">
             ${day.events.slice(0, 3).map(e => `
               <li class="grid-event-item" title="${e.summary}">
-                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time}</span>
+                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time + " — " + e.ends}</span>
                 ${e.summary}
               </li>
             `).join('')}
@@ -997,7 +997,7 @@ function renderCalendar(data) {
             <li class="upcoming-item">
               <div class="upcoming-date">${ev.is_today ? t.Today : ev.date}</div>
               <div class="upcoming-summary">${ev.summary}</div>
-              <div class="upcoming-time">${ev.is_allday ? t.AllDay : ev.time}</div>
+              <div class="upcoming-time">${ev.is_allday ? t.AllDay : ev.time + " — " + ev.ends}</div>
             </li>
           `).join('')}
         </ul>
@@ -1075,17 +1075,18 @@ function renderEventInfo(data, eventEl, t) {
         </strong>
       `;
     } else {
+      const dur = data.next.duration + "m";
       eventEl.innerHTML = data.next.same_day
         ? `
           ${t.Next}:
           <strong>
-            ${data.next.time} — ${data.next.summary}
+            ${data.next.time} — ${data.next.ends} (${dur}) : ${data.next.summary}
           </strong>
         `
         : `
           ${nextLabel}:
           <strong>
-            ${data.next.date}<br>
+            ${data.next.date} @ ${data.next.time} — ${data.next.ends} (${dur})<br>
             ${data.next.summary}
           </strong>
         `;
