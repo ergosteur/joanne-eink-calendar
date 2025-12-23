@@ -7,7 +7,7 @@ echo "BEGIN:VCALENDAR\r\n";
 echo "VERSION:2.0\r\n";
 echo "PRODID:-//LibreJoanne//Demo Generator//EN\r\n";
 
-$tz = new DateTimeZone('America/Toronto');
+$tz = new DateTimeZone('UTC');
 $start = new DateTime('now', $tz);
 // Go back 2 days to show some history, go forward 14 days
 $start->modify('-2 days');
@@ -15,21 +15,21 @@ $start->modify('-2 days');
 for ($i = 0; $i < 16; $i++) {
     $dateStr = $start->format('Ymd');
     
-    // 1. Morning Standup (09:00 - 09:30)
+    // 1. Morning Standup (09:00 - 09:30 UTC)
     echo "BEGIN:VEVENT\r\n";
     echo "UID:demo-standup-" . "{$dateStr}" . "\r\n";
     echo "DTSTAMP:" . gmdate('Ymd\THis\Z') . "\r\n";
-    echo "DTSTART:{$dateStr}T090000\r\n";
-    echo "DTEND:{$dateStr}T093000\r\n";
+    echo "DTSTART:{$dateStr}T090000Z\r\n";
+    echo "DTEND:{$dateStr}T093000Z\r\n";
     echo "SUMMARY:Morning Standup\r\n";
     echo "END:VEVENT\r\n";
 
-    // 2. Deep Work (14:00 - 16:00)
+    // 2. Deep Work (14:00 - 16:00 UTC)
     echo "BEGIN:VEVENT\r\n";
     echo "UID:demo-work-" . "{$dateStr}" . "\r\n";
     echo "DTSTAMP:" . gmdate('Ymd\THis\Z') . "\r\n";
-    echo "DTSTART:{$dateStr}T140000\r\n";
-    echo "DTEND:{$dateStr}T160000\r\n";
+    echo "DTSTART:{$dateStr}T140000Z\r\n";
+    echo "DTEND:{$dateStr}T160000Z\r\n";
     echo "SUMMARY:Deep Work Session\r\n";
     echo "END:VEVENT\r\n";
 
