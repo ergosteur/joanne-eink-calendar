@@ -68,13 +68,21 @@ Point your e-ink device to the absolute URLs provided in the management dashboar
 You can override most configuration settings via URL parameters for testing or specific device needs:
 
 - **`room`**: Load a specific room configuration by its key (e.g., `?room=boardroom`).
-- **`userid`**: Load a personal schedule using an access token (e.g., `?room=personal&userid=YOUR_TOKEN`).
+- **`userid`**: Load a personal schedule using an access token (e.g., `?userid=YOUR_TOKEN`). Providing this parameter automatically forces the room context to `personal`.
 - **`view`**: Force a layout mode (`room`, `dashboard`, or `grid`).
 - **`lang`**: Force a language (`en` or `fr`).
 - **`show_rss`**: Toggle the news ticker (`1` or `0`).
 - **`show_weather`**: Toggle the weather widget (`1` or `0`).
 - **`cal`**: (Personal view only) Append an additional iCal feed URL. Can be used multiple times.
 - **`dev_ip` / `dev_batt` / `dev_sig`**: Manually provide telemetry data (normally handled by Visionect headers).
+
+## Room Resolution & Special Keys
+
+LibreJoanne uses a hierarchical resolution system for configurations:
+
+1. **`default`**: The global fallback. If a requested `room` key is not found in the database or `config.php`, the settings from the `default` block are used.
+2. **`personal`**: The template for all User-tokenized views. Using `?userid=` automatically switches the context to `personal`. The settings in this block (name, base calendar feeds) act as the starting point before a user's individual database preferences (view mode, custom display label, coordinates) are applied.
+3. **Database Precedence**: Settings stored in the SQLite database (via the Management Dashboard) always override the hardcoded arrays in `config.php` if the keys match.
 
 Example: `http://your-server/index.php?room=bedroom&view=grid&lang=en&show_rss=0`
 

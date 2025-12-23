@@ -3,6 +3,10 @@
 
 return [
     'rooms' => [
+        /**
+         * 'default' is the fallback configuration. 
+         * If a requested ?room= is not found in the database or config, this is used.
+         */
         'default' => [
             'name' => 'The Boardroom',
             'calendar_url' => [
@@ -13,6 +17,13 @@ return [
             'show_rss' => true,
             'show_weather' => true,
         ],
+
+        /**
+         * 'personal' is the template for User views.
+         * When ?userid= is used, the system forces the room context to 'personal'.
+         * User-specific preferences (view, label, coords) from the database will 
+         * then override these base settings.
+         */
         'personal' => [
             'name' => 'My Schedule',
             'calendar_url' => [
