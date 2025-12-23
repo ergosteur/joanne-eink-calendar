@@ -52,11 +52,6 @@ return [
         'all' => [],
         'cache_ttl' => 300, // 5 minutes
     ],
-    'weather' => [
-        'url' => 'https://forecast7.com/en/43d65n79d38/toronto/',
-        'label_1' => 'TORONTO',
-        'label_2' => 'WEATHER',
-    ],
     'ui' => [
         'lang' => 'fr',
         'rotation_interval' => 0, // 0 to disable auto-switching
