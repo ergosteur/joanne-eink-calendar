@@ -719,6 +719,7 @@ const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
 const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
 const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
+const defaultTimezone = "<?= $config['calendar']['timezone'] ?>";
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars($lang) ?>";
@@ -876,7 +877,21 @@ function updateClock() {
       if (dateOffset !== 0) {
         timeBtn.textContent = t.ReturnToToday;
       } else {
-        timeBtn.textContent = formatTime(now);
+        let timeStr = formatTime(now);
+        
+        // If using a non-default timezone, append a small offset label
+        if (serverTimezone !== defaultTimezone) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: serverTimezone,
+                timeZoneName: 'short'
+            });
+            const parts = formatter.formatToParts(now);
+            const tzPart = parts.find(p => p.type === 'timeZoneName');
+            if (tzPart) {
+                timeStr += `<span style="font-size: 14px; margin-left: 8px; font-weight: 500;">${tzPart.value}</span>`;
+            }
+        }
+        timeBtn.innerHTML = timeStr;
       }
   }
 
