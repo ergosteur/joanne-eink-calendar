@@ -36,7 +36,7 @@ $isPersonalizedUser = false;
 
 // If it's a personal view with a valid token, let the user's preference override the view
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT view, time_format, weather_lat, weather_lon, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
+    $stmt = $db->getPdo()->prepare("SELECT view, time_format, weather_lat, weather_lon, weather_city, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
     $stmt->execute([$_GET['userid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($user) {
@@ -47,6 +47,7 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
         if (!empty($user['weather_lat'])) {
             $weatherLat = $user['weather_lat'];
             $weatherLon = $user['weather_lon'];
+            $weatherCity = $user['weather_city'];
         }
         if (!empty($user['past_horizon'])) $roomConfig['past_horizon'] = $user['past_horizon'];
         if (!empty($user['future_horizon'])) $roomConfig['future_horizon'] = $user['future_horizon'];
