@@ -1,7 +1,11 @@
 <?php
 // calendar.php — Merges one or more iCal feeds and returns JSON
 
-$config = require __DIR__ . "/../data/config.php";
+$configFile = __DIR__ . '/../data/config.php';
+if (!file_exists($configFile)) {
+    $configFile = __DIR__ . '/../data/config.sample.php';
+}
+$config = require $configFile;
 require_once __DIR__ . "/../lib/db.php";
 $db = new LibreDb($config);
 

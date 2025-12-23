@@ -1,7 +1,11 @@
 <?php
 // web/rss.php — Fetches multiple RSS feeds based on language
 
-$config = require __DIR__ . "/../data/config.php";
+$configFile = __DIR__ . '/../data/config.php';
+if (!file_exists($configFile)) {
+    $configFile = __DIR__ . '/../data/config.sample.php';
+}
+$config = require $configFile;
 $rssConfig = $config['rss'];
 
 header("Content-Type: application/json");

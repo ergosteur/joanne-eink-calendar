@@ -2,7 +2,12 @@
 // web/manage.php — Optimized User and Room management dashboard
 
 session_start();
-$config = require __DIR__ . "/../data/config.php";
+$configFile = __DIR__ . "/../data/config.php";
+$isFallbackConfig = !file_exists($configFile);
+if ($isFallbackConfig) {
+    $configFile = __DIR__ . "/../data/config.sample.php";
+}
+$config = require $configFile;
 require_once __DIR__ . "/../lib/db.php";
 
 // Prevent caching of the management dashboard
@@ -121,6 +126,11 @@ if (!$adminExists) {
     <body>
         <form method="POST">
             <h2 style="margin-top:0;">Initial Setup</h2>
+            <?php if($isFallbackConfig): ?>
+                <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:6px; margin-bottom:1rem; border:1px solid #ffeeba; font-size:0.85rem;">
+                    Using <code>config.sample.php</code> defaults.
+                </div>
+            <?php endif; ?>
             <p style="color:#666; font-size:0.9rem;">Enter the setup password from config.php to create your admin account.</p>
             <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
             <input type="password" name="setup_password" placeholder="Setup Password" required>
@@ -143,6 +153,11 @@ if (!isset($_SESSION['user_id'])) {
     <body>
         <form method="POST">
             <h2 style="margin-top:0;">Login</h2>
+            <?php if($isFallbackConfig): ?>
+                <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:6px; margin-bottom:1rem; border:1px solid #ffeeba; font-size:0.85rem;">
+                    Using <code>config.sample.php</code> defaults.
+                </div>
+            <?php endif; ?>
             <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
             <input type="text" name="username" placeholder="Username" required autofocus>
             <input type="password" name="password" placeholder="Password" required>
@@ -394,6 +409,13 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
         <a href="?tab=rooms" class="<?= $tab === 'rooms' ? 'active' : '' ?>">Rooms</a>
         <?php endif; ?>
     </div>
+
+    <?php if($isFallbackConfig): ?>
+        <div style="background:#fff3cd; color:#856404; padding:15px; border-radius:8px; margin-bottom:1.5rem; border:1px solid #ffeeba; font-weight:600;">
+            ⚠️ Warning: <code>config.php</code> not found. Using <code>config.sample.php</code> defaults. 
+            Please copy <code>web/data/config.sample.php</code> to <code>web/data/config.php</code> to customize your installation.
+        </div>
+    <?php endif; ?>
 
     <?php if($securityWarning) echo "<p style='color:white; background:#cc0000; padding:15px; border-radius:8px; font-weight:bold; border:2px solid #ff0000;'>$securityWarning</p>"; ?>
     <?php if($message) echo "<p style='color:green; background:#eaffea; padding:12px; border-radius:8px; font-weight:600;'>$message</p>"; ?>
