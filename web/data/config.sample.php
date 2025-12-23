@@ -23,7 +23,7 @@ return [
             'show_rss' => true,
             'show_weather' => true,
         ],
-        'demo-grid' => [
+        'personal-grid' => [
             'name' => 'Weekly Overview',
             'calendar_url' => [
                 'https://calendar.google.com/calendar/ical/en-gb.canadian%23holiday%40group.v.calendar.google.com/public/basic.ics',
