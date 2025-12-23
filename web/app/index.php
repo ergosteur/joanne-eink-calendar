@@ -44,7 +44,7 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
         $isPersonalizedUser = true;
         $view = $user['view'];
         $displayName = $user['display_name'];
-        $timeFormat = $user['time_format'];
+        $timeFormat = $user['time_format'] ?: "auto";
         if (!empty($user['timezone'])) $activeTimezone = $user['timezone'];
         if (!empty($user['weather_lat'])) {
             $weatherLat = $user['weather_lat'];
@@ -755,25 +755,21 @@ function formatTime(input) {
     date.setHours(h, m, 0, 0);
   }
 
+  const locale = (lang === "en" ? "en-CA" : "fr-CA");
+  const options = {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: serverTimezone
+  };
+
   if (is24h) {
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-      timeZone: serverTimezone
-    });
-    const parts = formatter.formatToParts(date);
-    const h = parts.find(p => p.type === 'hour').value;
-    const m = parts.find(p => p.type === 'minute').value;
-    return `${h}:${m}`;
+    options.hourCycle = 'h23';
+    options.hour12 = false;
   } else {
-    return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: serverTimezone
-    });
+    options.hour12 = true;
   }
+
+  return date.toLocaleTimeString(locale, options).replace(/\s/g, '');
 }
 
 const i18n = {
@@ -892,8 +888,7 @@ function updateClock() {
         let timeStr = formatTime(now);
         
         // Always append a small timezone/offset label
-        // We use en-US to get a standard abbreviation like "EST" or "GMT"
-        const tzFormatter = new Intl.DateTimeFormat('en-US', {
+        const tzFormatter = new Intl.DateTimeFormat(locale, {
             timeZone: serverTimezone,
             timeZoneName: 'short',
             hour: 'numeric' // Force time parts to ensure tz is separate
