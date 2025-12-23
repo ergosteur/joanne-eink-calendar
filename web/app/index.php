@@ -734,8 +734,14 @@ let statusLabel = "";
 function updateLabels() {
   const t = i18n[lang];
   const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
-  headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
-  statusLabel = isPersonalizedUser ? (displayName || t.Now) : t.Now;
+  
+  if (isPersonalizedUser) {
+    headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
+    statusLabel = displayName || t.Now;
+  } else {
+    headerLabel = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
+    statusLabel = t.Now;
+  }
 }
 
 function changeWeek(dir) {

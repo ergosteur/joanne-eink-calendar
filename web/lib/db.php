@@ -41,7 +41,6 @@ class LibreDb {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             room_key TEXT UNIQUE,
             name TEXT,
-            display_name TEXT,
             calendar_url TEXT,
             view TEXT DEFAULT 'room',
             time_format TEXT DEFAULT 'auto',
@@ -69,7 +68,6 @@ class LibreDb {
         $this->ensureColumn('rooms', 'weather_city', 'TEXT');
         $this->ensureColumn('rooms', 'past_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'future_horizon', 'INTEGER');
-        $this->ensureColumn('rooms', 'display_name', 'TEXT');
         $this->ensureColumn('rooms', 'time_format', 'TEXT');
         $this->ensureColumn('rooms', 'timezone', 'TEXT');
     }
@@ -103,7 +101,6 @@ class LibreDb {
             $room['weather_city'] = (string)$room['weather_city'];
             $room['past_horizon'] = (int)($room['past_horizon'] ?: 30);
             $room['future_horizon'] = (int)($room['future_horizon'] ?: 30);
-            $room['display_name'] = (string)$room['display_name'];
             $room['time_format'] = (string)($room['time_format'] ?: 'auto');
             $room['timezone'] = (string)($room['timezone'] ?? '');
         }

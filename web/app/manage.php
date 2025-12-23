@@ -265,19 +265,19 @@ if ($_SESSION['is_admin']) {
     if (isset($_POST['save_room'])) {
         $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
         if (!empty($_POST['room_id'])) {
-            $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, display_name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
+            $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
             $stmt->execute([
-                $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
+                $_POST['room_key'], $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
                 isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0, 
                 $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
                 $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
             ]);
             $message = "Room updated!";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, display_name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             try {
                 $stmt->execute([
-                    $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
+                    $_POST['room_key'], $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
                     isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                     $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
                     $_POST['past_horizon'], $_POST['future_horizon']
@@ -590,10 +590,6 @@ $allTimezones = DateTimeZone::listIdentifiers();
                     <div class="form-group">
                         <label>Room Name (Header)</label>
                         <input type="text" name="name" placeholder="The Boardroom" value="<?= htmlspecialchars((string)($editRoom['name'] ?? '')) ?>" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Status Label (Optional)</label>
-                        <input type="text" name="display_name" placeholder="e.g. Boardroom (Overrides 'Now')" value="<?= htmlspecialchars((string)($editRoom['display_name'] ?? '')) ?>">
                     </div>
                 </div>
                 
