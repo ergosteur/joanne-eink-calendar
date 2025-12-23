@@ -763,11 +763,11 @@ function formatTime(input) {
 
   if (use24h) {
     options.hourCycle = 'h23';
+    return date.toLocaleTimeString('en-GB', options);
   } else {
     options.hour12 = true;
+    return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", options);
   }
-  
-  return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", options);
 }
 
 const i18n = {
