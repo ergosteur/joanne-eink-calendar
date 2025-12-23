@@ -263,30 +263,37 @@ if (isset($_GET['delete_cal'])) {
 // Room Management (Admin Only)
 if ($_SESSION['is_admin']) {
     if (isset($_POST['save_room'])) {
-        $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
-        if (!empty($_POST['room_id'])) {
-            $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
-            $stmt->execute([
-                $_POST['room_key'], $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
-                isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0, 
-                $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
-                $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
-            ]);
-            $message = "Room updated!";
+        $reservedKeys = ['default', 'personal', 'personal-grid'];
+        $roomKey = strtolower(trim($_POST['room_key']));
+        
+        if (in_array($roomKey, $reservedKeys)) {
+            $error = "The room key '$roomKey' is reserved and cannot be used.";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            try {
+            $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
+            if (!empty($_POST['room_id'])) {
+                $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
                 $stmt->execute([
-                    $_POST['room_key'], $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
-                    isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
-                    $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
-                    $_POST['past_horizon'], $_POST['future_horizon']
+                    $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
+                    isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0, 
+                    $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
+                    $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
                 ]);
-                $message = "Room created!";
-            } catch (Exception $e) { $error = "Room key already exists."; }
+                $message = "Room updated!";
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                try {
+                    $stmt->execute([
+                        $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
+                        isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
+                        $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
+                        $_POST['past_horizon'], $_POST['future_horizon']
+                    ]);
+                    $message = "Room created!";
+                } catch (Exception $e) { $error = "Room key already exists."; }
+            }
+            clearAllCaches();
+            $editRoom = null;
         }
-        clearAllCaches();
-        $editRoom = null;
     }
 
     if (isset($_GET['delete_room'])) {
