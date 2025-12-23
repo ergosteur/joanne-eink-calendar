@@ -17,6 +17,7 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
     - **Demo Mode**: Automatically provides dummy telemetry (69% battery/signal) when using the `demo.ics.php` calendar.
     - On-device navigation to view past and future 7-day periods.
 - **Bilingual Interface**: English and French support with manual toggle or automatic rotation.
+- **Time Formatting**: Global preference for 12-hour or 24-hour time, with language-aware defaults (EN=12h, FR=24h).
 - **Unified Management Dashboard**:
     - **Room & User Management**: Create and edit configurations, choose view types, and set custom display labels.
     - **Location Search**: Built-in city search to automatically set weather coordinates.
