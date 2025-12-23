@@ -88,8 +88,21 @@ if (function_exists('getallheaders')) {
     $devSig = $devSig ?? $headers['X-Visionect-Signal'] ?? $headers['X-Signal'] ?? null;
 }
 
+// Detect if we are using the demo calendar
+$usingDemoCalendar = false;
+$checkUrls = is_array($roomConfig['calendar_url'] ?? []) 
+    ? $roomConfig['calendar_url'] 
+    : [$roomConfig['calendar_url'] ?? ''];
+
+foreach ($checkUrls as $u) {
+    if (str_contains($u, 'demo.ics.php')) {
+        $usingDemoCalendar = true;
+        break;
+    }
+}
+
 // Dummy values for demo rooms if no real data provided
-if (!$isDatabaseRoom && !$isPersonalizedUser && $devBatt === null && $devSig === null) {
+if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
     $devBatt = 69;
     $devSig = 69;
 }
