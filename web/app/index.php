@@ -716,6 +716,8 @@ const weatherLon = <?= (float)$weatherLon ?>;
 const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
 const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
 const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
+const serverTimezone = "<?= $config['calendar']['timezone'] ?>";
+const timeFormat = "<?= htmlspecialchars($timeFormat) ?>";
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars($lang) ?>";
@@ -756,7 +758,8 @@ function formatTime(input) {
   return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: !use24h
+    hour12: !use24h,
+    timeZone: serverTimezone
   });
 }
 
@@ -864,6 +867,7 @@ setInterval(updateTelemetry, 60000);
 function updateClock() {
   const t = i18n[lang];
   const now = new Date();
+  const locale = lang === "en" ? "en-CA" : "fr-CA";
   
   // 1. Handle the Time / Reset Button
   const timeBtn = document.getElementById("time-btn");
@@ -881,12 +885,12 @@ function updateClock() {
     viewDate.setDate(viewDate.getDate() + (dateOffset * 7));
   }
 
-  const locale = lang === "en" ? "en-CA" : "fr-CA";
   const dateStr = viewDate.toLocaleDateString(locale, {
     weekday: "short",
     year: "numeric",
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: serverTimezone
   });
 
   const dateEl = document.getElementById("date-display");
@@ -896,12 +900,29 @@ function updateClock() {
 setInterval(updateClock, 60000);
 updateClock();
 
-/* ---------- CALENDAR ---------- */
-function minutesUntil(endHHMM) {
-  const [h, m] = endHHMM.split(":").map(Number);
+/**
+ * Helper to get the current time in the server's timezone
+ * This returns a Date object that has been shifted so that its "local"
+ * methods (getHours, getMinutes) return values for the server timezone.
+ */
+function getServerNow() {
   const now = new Date();
+  const serverStr = now.toLocaleString("en-US", { timeZone: serverTimezone });
+  return new Date(serverStr);
+}
+
+/* ---------- CALENDAR ---------- */
+function minutesUntil(endHHMM, serverNowStr) {
+  const [h, m] = endHHMM.split(":").map(Number);
+  
+  // Use the server's concept of 'now' if provided, otherwise calculate from browser
+  const now = serverNowStr ? new Date(serverNowStr) : getServerNow();
+  
   const end = new Date(now);
   end.setHours(h, m, 0, 0);
+  
+  // If the end time is in the past compared to 'now', it might be past midnight
+  // But for "Ends In", we assume it's same-day.
   return Math.max(0, Math.round((end - now) / 60000));
 }
 
@@ -918,7 +939,7 @@ function renderCalendar(data) {
   if (view === "grid") {
     // Group events by day
     const days = [];
-    const today = new Date();
+    const today = getServerNow();
     today.setHours(0,0,0,0);
     
     // Calculate horizon thresholds
@@ -938,7 +959,10 @@ function renderCalendar(data) {
       const isOut = d < pastLimit || d > futureLimit;
       const dayEvents = (data.upcoming || []).filter(e => e.date === dateStr);
       
-      const dayName = d.toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'short' });
+      const dayName = d.toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { 
+        weekday: 'short',
+        timeZone: serverTimezone 
+      });
       const label = i === 0 && dateOffset === 0 ? `${dayName} (${t.Today})` : dayName;
 
       days.push({
@@ -968,7 +992,10 @@ function renderCalendar(data) {
     }
 
     const todayObj = days[0];
-    const fullDayName = new Date(todayObj.dateStr + "T00:00:00").toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'long' });
+    const fullDayName = new Date(todayObj.dateStr + "T00:00:00").toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { 
+      weekday: 'long',
+      timeZone: serverTimezone
+    });
     
     const mergedCellHtml = `
       <div class="grid-cell merged">
@@ -1104,7 +1131,7 @@ function renderEventInfo(data, eventEl, t) {
         </div>
       `;
     } else {
-      const mins = minutesUntil(data.current.ends);
+      const mins = minutesUntil(data.current.ends, data.now);
       eventEl.innerHTML = `
         <div style="color:#666; margin-bottom:4px;">${currentLabel}:</div>
         <strong>${data.current.summary}</strong>
@@ -1228,7 +1255,10 @@ function fetchWeather() {
         if (forecastEl && data.daily && data.daily.length > 0) {
           forecastEl.innerHTML = data.daily.slice(1, 4).map(day => {
             const date = new Date(day.day + "T00:00:00");
-            const dayName = date.toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'short' });
+            const dayName = date.toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { 
+              weekday: 'short',
+              timeZone: serverTimezone
+            });
             const dayIcon = wmoIcons[day.code] || "wi-cloudy";
             return `
               <div class="forecast-day">
