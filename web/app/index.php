@@ -728,6 +728,15 @@ let lastData = null;
 let lastWeatherData = null;
 let autoLangTimer = null;
 let dateOffset = 0; // Number of 7-day periods to offset
+let headerLabel = "";
+let statusLabel = "";
+
+function updateLabels() {
+  const t = i18n[lang];
+  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
+  headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
+  statusLabel = isPersonalizedUser ? (displayName || t.Now) : t.Now;
+}
 
 function changeWeek(dir) {
   dateOffset += dir;
@@ -831,6 +840,7 @@ function updateUI() {
   if (langInd) langInd.textContent = lang === "en" ? "FR" : "EN";
   const newsLabel = document.getElementById("news-label");
   if (newsLabel) newsLabel.textContent = i18n[lang].News;
+  updateLabels();
   updateClock();
   renderCalendar(lastData);
 }
@@ -961,11 +971,6 @@ function renderCalendar(data) {
 
   const t = i18n[lang];
   const mainEl = document.querySelector(".main");
-  
-  // Handle room name translation if it's a known key
-  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
-  const headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
-  const statusLabel = isPersonalizedUser ? (displayName || t.Now) : t.Now;
 
   if (view === "grid") {
     // Group events by day
