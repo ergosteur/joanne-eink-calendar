@@ -41,6 +41,11 @@ function isValidUrl($url) {
     return isset($parsed['scheme'], $parsed['host']) && 
            ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
 }
+
+function unescapeIcal($text) {
+    return str_replace(['\\,', '\\;', '\\\\', '\\n', '\\N'], [',', ';', '\\', "\n", "\n"], $text);
+}
+
 $urls = array_filter($urls, 'isValidUrl');
 
 $CACHE_TTL  = $calConfig['cache_ttl'];
@@ -130,7 +135,7 @@ foreach ($urls as $url) {
             
             // SUMMARY
             if (preg_match('/^SUMMARY:(.*)/m', $block, $m)) {
-                $event['summary'] = trim($m[1]);
+                $event['summary'] = unescapeIcal(trim($m[1]));
             }
 
             if (isset($event['start'], $event['end'], $event['summary'])) {

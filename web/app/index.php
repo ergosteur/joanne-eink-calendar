@@ -84,6 +84,10 @@ if (function_exists('getallheaders')) {
     <link rel="stylesheet" href="assets/css/weather-icons.min.css">
 
     <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         html,
         body {
             margin: 0;
@@ -141,7 +145,6 @@ if (function_exists('getallheaders')) {
             align-items: center;
             justify-content: center;
             height: 48px;
-            box-sizing: border-box;
             white-space: nowrap;
         }
 
@@ -221,14 +224,15 @@ if (function_exists('getallheaders')) {
         .main {
             flex: 1;
             padding: 12px 48px;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             border-top: 1px solid #000;
+            min-height: 0; /* Prevent stretching */
         }
 
         .view-grid .main {
             padding: 0;
+            overflow: hidden;
         }
 
         .room-name {
@@ -304,11 +308,12 @@ if (function_exists('getallheaders')) {
         /* ---------- GRID VIEW ---------- */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-            gap: 0; /* Remove gap for seamless look */
+            grid-template-columns: repeat(4, 25%);
+            grid-template-rows: 50% 50%;
+            gap: 0;
             height: 100%;
             width: 100%;
+            overflow: hidden;
         }
 
         .grid-cell {
@@ -320,6 +325,7 @@ if (function_exists('getallheaders')) {
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0; /* Ensure it doesn't push row height */
         }
 
         .grid-cell.out-of-horizon {
@@ -330,6 +336,16 @@ if (function_exists('getallheaders')) {
             grid-column: span 2;
             border-right: 1px solid #000;
             border-bottom: 1px solid #000;
+        }
+
+        /* Remove outer grid borders */
+        .grid-container .grid-cell:nth-child(3),
+        .grid-container .grid-cell:nth-child(7) {
+            border-right: none;
+        }
+
+        .grid-container .grid-cell:nth-child(n+4) {
+            border-bottom: none;
         }
 
         .today-detail {
