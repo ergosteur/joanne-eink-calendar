@@ -719,6 +719,7 @@ const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
 const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
 const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
+const isPersonalizedUser = <?= $isPersonalizedUser ? 'true' : 'false' ?>;
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars((string)$lang) ?>";
@@ -963,7 +964,8 @@ function renderCalendar(data) {
   
   // Handle room name translation if it's a known key
   const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
-  const translatedRoomName = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
+  const headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
+  const statusLabel = isPersonalizedUser ? (displayName || t.Now) : t.Now;
 
   if (view === "grid") {
     // Group events by day
@@ -1030,7 +1032,7 @@ function renderCalendar(data) {
       <div class="grid-cell merged">
         <div class="grid-date-num" style="font-size: 52px; top: 2px; color: #666;">${todayObj.dayNum}</div>
         <div class="grid-now-label">
-            <div style="font-size: 16px; color: #666; text-transform: uppercase;">${translatedRoomName}</div>
+            <div style="font-size: 16px; color: #666; text-transform: uppercase;">${statusLabel}</div>
             <div style="font-size: 24px; color: #000; margin-top: 2px;">${fullDayName}</div>
         </div>
         <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
@@ -1126,7 +1128,7 @@ function renderCalendar(data) {
     const roomNameSize = isRoom ? "24px" : "20px";
 
     mainEl.innerHTML = `
-      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: ${roomNameSize};">${translatedRoomName}</div>
+      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: ${roomNameSize};">${headerLabel}</div>
       <div class="dashboard-container">
         <div class="dashboard-left" id="dashboard-left-content">
           <div id="status" class="status" style="font-size: ${statusSize}; margin-bottom: 16px;">${t[data.status]}</div>
@@ -1148,10 +1150,7 @@ function renderEventInfo(data, eventEl, t) {
   const isPersonal = (view === "dashboard" || view === "grid");
   const nextLabel = isPersonal ? t.NextEvent : t.NextMeeting;
   const noLabel   = isPersonal ? t.NoEvents : t.NoMeetings;
-  // Handle room name translation if it's a known key
-  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
-  const translatedRoomName = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
-  const currentLabel = translatedRoomName;
+  const currentLabel = statusLabel;
 
   if (data.status === "IN_USE" && data.current) {
     if (data.current.is_allday) {
