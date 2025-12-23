@@ -29,7 +29,7 @@ $urls = array_filter($urls, function($url) {
 
 function fetchCached($url, $ttl) {
     $cacheSalt = "LibreJoanne_RSS_Salt_";
-    $cacheFile = __DIR__ . "/../data/rss.cache." . md5($cacheSalt . $url) . ".xml";
+    $cacheFile = __DIR__ . "/../data/cache/rss.cache." . md5($cacheSalt . $url) . ".xml";
     
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return file_get_contents($cacheFile);

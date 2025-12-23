@@ -10,9 +10,9 @@ web/data/*.db-shm
 web/data/*.db-wal
 
 # Ignore all caches
-web/data/*.ics
-web/data/*.xml
-web/data/*.json
+web/data/cache/*.ics
+web/data/cache/*.xml
+web/data/cache/*.json
 
 # Ignore server logs
 *.log

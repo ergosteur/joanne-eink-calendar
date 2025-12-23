@@ -70,7 +70,7 @@ header("Pragma: no-cache");
 function getICS($url, $ttl) {
     // Salt the cache filename to prevent guessing from known URLs
     $cacheSalt = "LibreJoanne_Salt_";
-    $cacheFile = __DIR__ . "/../data/calendar.cache." . md5($cacheSalt . $url) . ".ics";
+    $cacheFile = __DIR__ . "/../data/cache/calendar.cache." . md5($cacheSalt . $url) . ".ics";
     
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return file_get_contents($cacheFile);

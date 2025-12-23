@@ -18,7 +18,7 @@ $message = "";
 $tab = $_GET['tab'] ?? 'users';
 
 function clearAllCaches() {
-    $files = glob(__DIR__ . '/../data/*.{ics,xml,json}', GLOB_BRACE);
+    $files = glob(__DIR__ . '/../data/cache/*.{ics,xml,json}', GLOB_BRACE);
     foreach ($files as $file) {
         if (is_file($file)) unlink($file);
     }
@@ -43,10 +43,10 @@ $dir = dirname($_SERVER['PHP_SELF']);
 if ($dir === '/' || $dir === '\\') $dir = '';
 $baseUrl = "$protocol://$host$dir/";
 
-// SECURITY CHECK: Verify that /data/ is protected
+// SECURITY CHECK: Verify that /data/cache/ is protected
 $securityWarning = "";
 if ($adminExists && isset($_SESSION['user_id'])) {
-    $dataDir = __DIR__ . '/../data/';
+    $dataDir = __DIR__ . '/../data/cache/';
     $cacheFiles = glob($dataDir . '*.{ics,xml,json}', GLOB_BRACE);
 
     // If no cache exists, trigger RSS to generate one
@@ -60,7 +60,7 @@ if ($adminExists && isset($_SESSION['user_id'])) {
         // Pick the newest file
         usort($cacheFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
         $targetFile = basename($cacheFiles[0]);
-        $testUrl = $baseUrl . "../data/" . $targetFile;
+        $testUrl = $baseUrl . "../data/cache/" . $targetFile;
         
         $ctx = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
         $testContent = @file_get_contents($testUrl, false, $ctx);
@@ -68,7 +68,7 @@ if ($adminExists && isset($_SESSION['user_id'])) {
 
         // If we get a 200 OK and content, it's a leak
         if (strpos($statusLine, '200') !== false && strlen($testContent) > 0) {
-            $securityWarning = "CRITICAL: The 'data' directory is publicly accessible! .htaccess is not working. File exposed: $targetFile";
+            $securityWarning = "CRITICAL: The 'data/cache' directory is publicly accessible! .htaccess is not working. File exposed: $targetFile";
         }
     }
 }
