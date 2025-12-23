@@ -42,13 +42,20 @@ return [
         'en' => [
             'https://www.cbc.ca/cmlink/rss-topstories',
             'http://feeds.bbci.co.uk/news/world/rss.xml',
+            'https://rss.dw.com/xml/rss-en-all',
         ],
         'fr' => [
             'https://www.ledevoir.com/rss/manchettes.xml',
+            'https://www.lemonde.fr/rss/une.xml',
             'https://onfr.tfo.org/feed/',
         ],
         'all' => [],
         'cache_ttl' => 300, // 5 minutes
+    ],
+    'weather' => [
+        'url' => 'https://forecast7.com/en/43d65n79d38/toronto/',
+        'label_1' => 'TORONTO',
+        'label_2' => 'WEATHER',
     ],
     'ui' => [
         'lang' => 'fr',
