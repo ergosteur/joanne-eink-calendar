@@ -23,6 +23,16 @@ return [
             'show_rss' => true,
             'show_weather' => true,
         ],
+        'demo-grid' => [
+            'name' => 'Weekly Overview',
+            'calendar_url' => [
+                'https://calendar.google.com/calendar/ical/en-gb.canadian%23holiday%40group.v.calendar.google.com/public/basic.ics',
+                'demo.ics.php'
+            ],
+            'view' => 'grid',
+            'show_rss' => true,
+            'show_weather' => true,
+        ],
     ],
     'calendar' => [
         'cache_ttl' => 30, // seconds
