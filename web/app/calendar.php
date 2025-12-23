@@ -29,24 +29,26 @@ if (!empty($_GET['userid'])) {
     }
 }
 
-// Allow overriding via ?cal= only for the personal room
-if ($roomId === 'personal' && !empty($_GET['cal'])) {
-    $overrides = is_array($_GET['cal']) ? $_GET['cal'] : [$_GET['cal']];
-    $urls = array_merge($urls, $overrides);
-}
-
 // Security: Validate URLs (SSRF Protection)
-function isValidUrl($url) {
+function isValidWebUrl($url) {
     $parsed = parse_url($url);
     return isset($parsed['scheme'], $parsed['host']) && 
            ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
 }
 
+// Allow overriding via ?cal= only for the personal room
+if ($roomId === 'personal' && !empty($_GET['cal'])) {
+    $overrides = is_array($_GET['cal']) ? $_GET['cal'] : [$_GET['cal']];
+    // Strict filtering for user input
+    $overrides = array_filter($overrides, 'isValidWebUrl');
+    $urls = array_merge($urls, $overrides);
+}
+
+// Note: We do NOT filter $urls here because we trust Config/DB URLs to contain local paths if needed.
+
 function unescapeIcal($text) {
     return str_replace(['\\,', '\\;', '\\\\', '\\n', '\\N'], [',', ';', '\\', "\n", "\n"], $text);
 }
-
-$urls = array_filter($urls, 'isValidUrl');
 
 $CACHE_TTL  = $calConfig['cache_ttl'];
 $pastDays = (int)($roomConfig['past_horizon'] ?? 30);
@@ -83,7 +85,14 @@ function getICS($url, $ttl) {
         ]
     ];
     $context = stream_context_create($opts);
-    $ics = @file_get_contents($url, false, $context);
+    
+    // Resolve relative paths if it's a local file
+    $fetchUrl = $url;
+    if (!isValidWebUrl($url) && file_exists(__DIR__ . "/" . $url)) {
+        $fetchUrl = __DIR__ . "/" . $url;
+    }
+
+    $ics = @file_get_contents($fetchUrl, false, $context);
     
     if ($ics === false) {
         return file_exists($cacheFile) ? file_get_contents($cacheFile) : false;
