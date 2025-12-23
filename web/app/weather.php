@@ -30,10 +30,17 @@ if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
 
 $url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max&timezone=auto&forecast_days=8";
 
+if (!LibreDb::isValidRemoteUrl($url)) {
+    http_response_code(400);
+    echo json_encode(["error" => "Invalid weather source URL"]);
+    exit;
+}
+
 $opts = [
     "http" => [
         "method" => "GET",
-        "header" => "User-Agent: LibreJoanne/1.0\r\n"
+        "header" => "User-Agent: LibreJoanne/1.0\r\n",
+        "timeout" => 5
     ]
 ];
 $context = stream_context_create($opts);

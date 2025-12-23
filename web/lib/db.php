@@ -136,4 +136,24 @@ class LibreDb {
     }
 
     public function getPdo() { return $this->pdo; }
+
+    /**
+     * Security: Validates remote URLs and protects against SSRF
+     */
+    public static function isValidRemoteUrl($url) {
+        $parsed = parse_url($url);
+        if (!isset($parsed['scheme'], $parsed['host']) || !in_array($parsed['scheme'], ['http', 'https'])) {
+            return false;
+        }
+
+        $host = $parsed['host'];
+        $ip = gethostbyname($host);
+
+        // Reject if it doesn't resolve or resolves to a private/reserved IP
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return false;
+        }
+
+        return true;
+    }
 }

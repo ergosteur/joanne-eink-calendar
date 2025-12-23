@@ -3,6 +3,13 @@
 
 header("Content-Type: application/json");
 
+$configFile = __DIR__ . '/../data/config.php';
+if (!file_exists($configFile)) {
+    $configFile = __DIR__ . '/../data/config.sample.php';
+}
+$config = require $configFile;
+require_once __DIR__ . "/../lib/db.php";
+
 $name = $_GET['name'] ?? '';
 if (strlen($name) < 2) {
     echo json_encode([]);
@@ -11,10 +18,17 @@ if (strlen($name) < 2) {
 
 $url = "https://geocoding-api.open-meteo.com/v1/search?name=" . urlencode($name) . "&count=5&language=en&format=json";
 
+if (!LibreDb::isValidRemoteUrl($url)) {
+    http_response_code(400);
+    echo json_encode(["error" => "Invalid geocoding source URL"]);
+    exit;
+}
+
 $opts = [
     "http" => [
         "method" => "GET",
-        "header" => "User-Agent: LibreJoanne/1.0\r\n"
+        "header" => "User-Agent: LibreJoanne/1.0\r\n",
+        "timeout" => 5
     ]
 ];
 $context = stream_context_create($opts);

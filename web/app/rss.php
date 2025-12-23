@@ -6,6 +6,8 @@ if (!file_exists($configFile)) {
     $configFile = __DIR__ . '/../data/config.sample.php';
 }
 $config = require $configFile;
+require_once __DIR__ . '/../lib/db.php';
+$db = new LibreDb($config);
 $rssConfig = $config['rss'];
 
 header("Content-Type: application/json");
@@ -25,11 +27,7 @@ if (empty($urls)) {
 }
 
 // Security: Validate URLs (SSRF Protection)
-$urls = array_filter($urls, function($url) {
-    $parsed = parse_url($url);
-    return isset($parsed['scheme'], $parsed['host']) && 
-           ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
-});
+$urls = array_filter($urls, [LibreDb::class, 'isValidRemoteUrl']);
 
 function fetchCached($url, $ttl) {
     $cacheSalt = "LibreJoanne_RSS_Salt_";
@@ -42,7 +40,8 @@ function fetchCached($url, $ttl) {
     $opts = [
         "http" => [
             "method" => "GET",
-            "header" => "User-Agent: LibreJoanne/1.0\r\n"
+            "header" => "User-Agent: LibreJoanne/1.0\r\n",
+            "timeout" => 10
         ]
     ];
     $context = stream_context_create($opts);

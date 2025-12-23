@@ -39,9 +39,7 @@ if (!empty($_GET['userid'])) {
 
 // Security: Validate URLs (SSRF Protection)
 function isValidWebUrl($url) {
-    $parsed = parse_url($url);
-    return isset($parsed['scheme'], $parsed['host']) && 
-           ($parsed['scheme'] === 'http' || $parsed['scheme'] === 'https');
+    return LibreDb::isValidRemoteUrl($url);
 }
 
 // Allow overriding via ?cal= only for the personal room
@@ -89,19 +87,30 @@ function getICS($url, $ttl) {
     $opts = [
         "http" => [
             "method" => "GET",
-            "header" => "User-Agent: LibreJoanne/1.0\r\n"
+            "header" => "User-Agent: LibreJoanne/1.0\r\n",
+            "timeout" => 10, // 10 second timeout for remote fetches
         ]
     ];
     $context = stream_context_create($opts);
     
     // Resolve relative paths if it's a local file
     $fetchUrl = $url;
-    if (!isValidWebUrl($url) && file_exists(__DIR__ . "/" . $url)) {
-        $fetchUrl = __DIR__ . "/" . $url;
-    }
+    $isLocal = !isValidWebUrl($url);
+    if ($isLocal) {
+        // Security: Only allow demo.ics.php as a local source
+        if (basename($url) !== 'demo.ics.php') {
+            return false;
+        }
 
-    // If it's a local PHP file, execute it to get the iCal content
-    if (str_ends_with($fetchUrl, '.php') && !isValidWebUrl($url)) {
+        $baseDir = realpath(__DIR__);
+        $fetchUrl = realpath(__DIR__ . "/" . basename($url));
+        
+        // Ensure the path is within the allowed directory
+        if (!$fetchUrl || !str_starts_with($fetchUrl, $baseDir)) {
+            return false;
+        }
+
+        // Execute the local PHP demo file
         ob_start();
         include $fetchUrl;
         $ics = ob_get_clean();

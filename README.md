@@ -88,13 +88,19 @@ LibreJoanne uses a hierarchical resolution system for configurations:
 
 Example: `http://your-server/index.php?room=bedroom&view=grid&lang=en&show_rss=0`
 
-## Security Notes
+## Security & Deployment Model
 
-- Direct browser access to the `data/` folder is blocked by `.htaccess`.
+LibreJoanne is designed for deployment on trusted internal networks (LAN). Its security model assumes the following:
 
-- All calendar URLs are encrypted at rest.
+- **Directory Protection**: Direct browser access to the `data/` folder is blocked by `.htaccess` (on Apache) to prevent exposure of the database and configuration files.
+- **Trusted Environment**: The application should be accessed by known devices (tablets, e-ink panels) within a private network. It is not hardened for direct public internet exposure.
+- **Admin Competence**: Administrative access to `manage.php` assumes that the administrator is responsible for configuring trusted calendar and RSS feeds.
+- **SSRF Protection**: Remote fetches (calendars, weather, RSS) include basic SSRF protection by rejecting requests to private/reserved IP ranges and loopback addresses.
+- **Local Feed Hardening**: Local iCal feeds are restricted to the `demo.ics.php` file within the `web/app/` directory to prevent directory traversal and unauthorized file execution.
+- **Encrypted Storage**: Sensitive data, such as calendar URLs, are stored encrypted using AES-256-CBC.
+- **Access Control**: The management dashboard is protected by session-based authentication. Personal views are protected by unique, non-sequential access tokens.
 
-- Access tokens obfuscate personal schedule URLs.
+If you must expose the application to the internet, it is strongly recommended to use a reverse proxy with additional authentication (e.g., Basic Auth, Authelia) and IP allow-listing.
 
 
 
