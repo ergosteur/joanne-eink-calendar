@@ -4,7 +4,7 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
 
 ## Key Features
 
-- **Live Calendar Feeds**: Multi-calendar support via iCal with robust parsing (handles timezones, line folding, all-day events, and merging multiple feeds).
+- **Live Calendar Feeds**: Multi-calendar support via iCal with robust parsing. Supports internal execution of local `.php` templates for dynamic event generation.
 - **Flexible View Modes**:
     - **Room View**: Large-format status (AVAILABLE/IN USE) for meeting rooms.
     - **Dashboard View**: Personal schedule view with a vertical list of upcoming events.
@@ -14,6 +14,7 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
     - **Custom Weather**: Integrated Open-Meteo weather with 3-day forecasts and high-contrast icons.
 - **Diagnostics & Navigation**:
     - Real-time device IP, battery, and signal tracking (header + `okular` JS support).
+    - **Demo Mode**: Automatically provides dummy telemetry (69% battery/signal) when using the `demo.ics.php` calendar.
     - On-device navigation to view past and future 7-day periods.
 - **Bilingual Interface**: English and French support with manual toggle or automatic rotation.
 - **Unified Management Dashboard**:
@@ -37,7 +38,7 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
     ├── data/          # Private Data (URL-blocked via .htaccess)
     │   ├── config.php # System configuration
     │   ├── librejoanne.db # SQLite database
-    │   └── *.cache    # Cached ICS, XML, and JSON files
+    │   └── cache/     # Isolated cache for ICS, XML, and JSON files
     └── lib/           # Shared Logic
         └── db.php     # Database and Security helper
 ```

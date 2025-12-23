@@ -15,7 +15,7 @@ To provide a distraction-free, high-contrast, and bilingual interface for 6-inch
     - **Self-Diagnostics**: Automated dashboard check to verify server-side directory protection for the `data/cache/` subdirectory.
     - **Configuration Fallback**: Graceful automatic fallback to `config.sample.php` to ensure a working initial state for new deployments.
 - **Contextual UI**: Unified Room and Dashboard views into a shared split-screen layout while maintaining context-aware typography. Displays enriched event data including end times and durations. Supports personalized "Now" status labels via a "Status Label" (display_name) override for both rooms and users.
-- **Deep Diagnostics**: Native support for Visionect telemetry (IP, Battery, Signal) via headers and the `okular` JS object.
+- **Deep Diagnostics**: Native support for Visionect telemetry (IP, Battery, Signal) via headers and the `okular` JS object. Includes a **Demo Mode** that provides dummy values (69%) when the `demo.ics.php` calendar is active.
 - **Resilient Navigation**: Server-side caching combined with client-side state tracking allows users to browse up to 30 days of history and future schedules. Access tokens (`?userid=`) automatically trigger personal context, simplifying URL deployment.
 - **Zero-Cache Strategy**: Core dynamic pages and API endpoints enforce strict `no-cache` headers to prevent stale data served by CDNs (Cloudflare) or browsers.
 - **Automated Cache Management**: Centralized cache storage in `web/data/cache/`. The system automatically invalidates and refreshes local data caches whenever configurations are changed via the dashboard.
