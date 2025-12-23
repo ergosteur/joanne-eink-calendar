@@ -95,7 +95,7 @@ class LibreDb {
         $room = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($room) {
             // Convert types back to what the app expects
-            $room['calendar_url'] = json_decode($room['calendar_url'], true);
+            $room['calendar_url'] = json_decode((string)($room['calendar_url'] ?? '[]'), true) ?: [];
             $room['show_rss'] = (bool)$room['show_rss'];
             $room['show_weather'] = (bool)$room['show_weather'];
             $room['weather_lat'] = (float)$room['weather_lat'];

@@ -36,9 +36,10 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
 
 date_default_timezone_set($activeTimezone);
 
-$urls = is_array($roomConfig['calendar_url']) 
+$urls = is_array($roomConfig['calendar_url'] ?? null) 
         ? $roomConfig['calendar_url'] 
-        : [$roomConfig['calendar_url']];
+        : [$roomConfig['calendar_url'] ?? ''];
+$urls = array_filter($urls); // Remove empty strings/nulls
 
 // Check for Database override via userid token
 if (!empty($_GET['userid'])) {
