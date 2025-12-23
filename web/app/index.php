@@ -32,7 +32,7 @@ $lang = $_GET['lang'] ?? $config['ui']['lang'];
 $view = $roomConfig['view'] ?? 'room';
 $displayName = $roomConfig['display_name'] ?? "";
 $timeFormat = $roomConfig['time_format'] ?? "auto";
-$activeTimezone = $roomConfig['timezone'] ?: $config['calendar']['timezone'];
+$activeTimezone = ($roomConfig['timezone'] ?? '') ?: $config['calendar']['timezone'];
 $isPersonalizedUser = false;
 
 // If it's a personal view with a valid token, let the user's preference override the view
@@ -719,7 +719,6 @@ const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
 const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
 const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
-const timeFormat = "<?= htmlspecialchars($timeFormat) ?>";
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars($lang) ?>";

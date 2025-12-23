@@ -23,7 +23,7 @@ if (!$roomConfig) {
     $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
 }
 
-$activeTimezone = $roomConfig['timezone'] ?: $calConfig['timezone'];
+$activeTimezone = ($roomConfig['timezone'] ?? '') ?: $calConfig['timezone'];
 
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
     $stmt = $db->getPdo()->prepare("SELECT timezone FROM users WHERE access_token = ?");
