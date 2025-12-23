@@ -76,7 +76,7 @@ if ($view === 'grid') {
 // Get Weather Coordinates
 $weatherLat = $weatherLat ?? $roomConfig['weather_lat'] ?? 43.65;
 $weatherLon = $weatherLon ?? $roomConfig['weather_lon'] ?? -79.38;
-$weatherCity = $roomConfig['weather_city'] ?? 'Toronto';
+$weatherCity = $weatherCity ?? $roomConfig['weather_city'] ?? 'Toronto';
 
 // Capture Device Status (More robust detection for different gateway versions)
 $devIp = $_SERVER['HTTP_X_VISIONECT_DEVICE_IP'] ?? $_SERVER['HTTP_X_DEVICE_IP'] ?? $_GET['dev_ip'] ?? null;
