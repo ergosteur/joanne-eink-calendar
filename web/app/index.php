@@ -13,6 +13,7 @@ header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
 $roomId = $_GET['room'] ?? 'default';
+$isDatabaseRoom = false;
 
 // If a userid is provided, assume it's a personal view regardless of the room parameter
 if (!empty($_GET['userid'])) {
@@ -21,13 +22,16 @@ if (!empty($_GET['userid'])) {
 
 // Try DB first, then config.php
 $roomConfig = $db->getRoomConfig($roomId);
-if (!$roomConfig) {
+if ($roomConfig) {
+    $isDatabaseRoom = true;
+} else {
     $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
 }
 
 $lang = $_GET['lang'] ?? $config['ui']['lang'];
 $view = $roomConfig['view'] ?? 'room';
 $displayName = $roomConfig['display_name'] ?? "";
+$isPersonalizedUser = false;
 
 // If it's a personal view with a valid token, let the user's preference override the view
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
@@ -35,6 +39,7 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
     $stmt->execute([$_GET['userid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($user) {
+        $isPersonalizedUser = true;
         $view = $user['view'];
         $displayName = $user['display_name'];
         if (!empty($user['weather_lat'])) {
@@ -81,6 +86,12 @@ if (function_exists('getallheaders')) {
     $devIp = $devIp ?? $headers['X-Visionect-Device-IP'] ?? $headers['X-Device-IP'] ?? null;
     $devBatt = $devBatt ?? $headers['X-Visionect-Battery'] ?? $headers['X-Battery'] ?? null;
     $devSig = $devSig ?? $headers['X-Visionect-Signal'] ?? $headers['X-Signal'] ?? null;
+}
+
+// Dummy values for demo rooms if no real data provided
+if (!$isDatabaseRoom && !$isPersonalizedUser && $devBatt === null && $devSig === null) {
+    $devBatt = 69;
+    $devSig = 69;
 }
 ?>
 <!DOCTYPE html>
