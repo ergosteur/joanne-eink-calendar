@@ -963,7 +963,7 @@ function renderCalendar(data) {
   
   // Handle room name translation if it's a known key
   const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
-  const translatedRoomName = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
+  const translatedRoomName = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
 
   if (view === "grid") {
     // Group events by day
@@ -1030,7 +1030,7 @@ function renderCalendar(data) {
       <div class="grid-cell merged">
         <div class="grid-date-num" style="font-size: 52px; top: 2px; color: #666;">${todayObj.dayNum}</div>
         <div class="grid-now-label">
-            <div style="font-size: 16px; color: #666; text-transform: uppercase;">${displayName || t.Now}</div>
+            <div style="font-size: 16px; color: #666; text-transform: uppercase;">${translatedRoomName}</div>
             <div style="font-size: 24px; color: #000; margin-top: 2px;">${fullDayName}</div>
         </div>
         <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
@@ -1148,7 +1148,10 @@ function renderEventInfo(data, eventEl, t) {
   const isPersonal = (view === "dashboard" || view === "grid");
   const nextLabel = isPersonal ? t.NextEvent : t.NextMeeting;
   const noLabel   = isPersonal ? t.NoEvents : t.NoMeetings;
-  const currentLabel = displayName || t.Now;
+  // Handle room name translation if it's a known key
+  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
+  const translatedRoomName = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
+  const currentLabel = translatedRoomName;
 
   if (data.status === "IN_USE" && data.current) {
     if (data.current.is_allday) {
