@@ -762,8 +762,16 @@ function formatTime(input) {
   };
 
   if (use24h) {
-    options.hourCycle = 'h23';
-    return date.toLocaleTimeString('en-GB', options);
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: serverTimezone
+    });
+    const parts = formatter.formatToParts(date);
+    const h = parts.find(p => p.type === 'hour').value;
+    const m = parts.find(p => p.type === 'minute').value;
+    return `${h}:${m}`;
   } else {
     options.hour12 = true;
     return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", options);
