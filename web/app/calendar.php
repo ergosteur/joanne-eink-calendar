@@ -23,7 +23,18 @@ if (!$roomConfig) {
     $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
 }
 
-date_default_timezone_set($calConfig['timezone']);
+$activeTimezone = $roomConfig['timezone'] ?: $calConfig['timezone'];
+
+if ($roomId === 'personal' && !empty($_GET['userid'])) {
+    $stmt = $db->getPdo()->prepare("SELECT timezone FROM users WHERE access_token = ?");
+    $stmt->execute([$_GET['userid']]);
+    $userTz = $stmt->fetchColumn();
+    if ($userTz) {
+        $activeTimezone = $userTz;
+    }
+}
+
+date_default_timezone_set($activeTimezone);
 
 $urls = is_array($roomConfig['calendar_url']) 
         ? $roomConfig['calendar_url'] 
@@ -162,7 +173,7 @@ foreach ($urls as $url) {
             
             // DTEND
             if (preg_match('/^DTEND(?:;VALUE=(DATE)|;TZID=([^:]+))?:(\d+T?\d*Z?)/m', $block, $m)) {
-                $tzName = !empty($m[2]) ? $m[2] : $calConfig['timezone'];
+                $tzName = !empty($m[2]) ? $m[2] : $activeTimezone;
                 $event['end'] = parseIcsDate($m[3], $tzName);
             }
             
@@ -176,8 +187,8 @@ foreach ($urls as $url) {
                 
                 // If it's a timed event, convert it from its source TZ to local TZ
                 if (!$isAllDay) {
-                    $event['start']->setTimezone(new DateTimeZone($calConfig['timezone']));
-                    $event['end']->setTimezone(new DateTimeZone($calConfig['timezone']));
+                    $event['start']->setTimezone(new DateTimeZone($activeTimezone));
+                    $event['end']->setTimezone(new DateTimeZone($activeTimezone));
                 }
                 // All-day events were parsed directly into local timezone by parseIcsDate
                 
@@ -190,7 +201,7 @@ foreach ($urls as $url) {
 // Sort all merged events by START time
 usort($events, fn($a, $b) => $a["start"] <=> $b["start"]);
 
-$now = new DateTime("now", new DateTimeZone($calConfig['timezone']));
+$now = new DateTime("now", new DateTimeZone($activeTimezone));
 $current = null;
 $next = null;
 $upcoming = [];

@@ -32,11 +32,12 @@ $lang = $_GET['lang'] ?? $config['ui']['lang'];
 $view = $roomConfig['view'] ?? 'room';
 $displayName = $roomConfig['display_name'] ?? "";
 $timeFormat = $roomConfig['time_format'] ?? "auto";
+$activeTimezone = $roomConfig['timezone'] ?: $config['calendar']['timezone'];
 $isPersonalizedUser = false;
 
 // If it's a personal view with a valid token, let the user's preference override the view
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT view, time_format, weather_lat, weather_lon, weather_city, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
+    $stmt = $db->getPdo()->prepare("SELECT view, time_format, timezone, weather_lat, weather_lon, weather_city, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
     $stmt->execute([$_GET['userid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($user) {
@@ -44,6 +45,7 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
         $view = $user['view'];
         $displayName = $user['display_name'];
         $timeFormat = $user['time_format'];
+        if (!empty($user['timezone'])) $activeTimezone = $user['timezone'];
         if (!empty($user['weather_lat'])) {
             $weatherLat = $user['weather_lat'];
             $weatherLon = $user['weather_lon'];
@@ -716,7 +718,7 @@ const weatherLon = <?= (float)$weatherLon ?>;
 const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
 const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
 const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
-const serverTimezone = "<?= $config['calendar']['timezone'] ?>";
+const serverTimezone = "<?= $activeTimezone ?>";
 const timeFormat = "<?= htmlspecialchars($timeFormat) ?>";
 
         /* ---------- LANGUAGE ---------- */

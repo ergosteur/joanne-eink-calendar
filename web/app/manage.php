@@ -186,8 +186,8 @@ if (isset($_POST['save_user_view'])) {
     if (!$_SESSION['is_admin'] && $_SESSION['user_id'] != $_POST['user_id']) {
         $error = "Unauthorized action.";
     } else {
-        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
-        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
+        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, timezone = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
+        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['timezone'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
         clearAllCaches();
         $message = "User preferences updated and caches cleared.";
     }
@@ -265,19 +265,19 @@ if ($_SESSION['is_admin']) {
     if (isset($_POST['save_room'])) {
         $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
         if (!empty($_POST['room_id'])) {
-            $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, display_name=?, calendar_url=?, view=?, time_format=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
+            $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, display_name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
             $stmt->execute([
-                $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'],
+                $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
                 isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0, 
                 $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
                 $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
             ]);
             $message = "Room updated!";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, display_name, calendar_url, view, time_format, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, display_name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             try {
                 $stmt->execute([
-                    $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'],
+                    $_POST['room_key'], $_POST['name'], $_POST['display_name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
                     isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                     $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
                     $_POST['past_horizon'], $_POST['future_horizon']
@@ -490,6 +490,10 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
                                 <option value="24h" <?= ($user['time_format'] ?? '') === '24h' ? 'selected' : '' ?>>24-Hour (13:00)</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Timezone Override</label>
+                            <input type="text" name="timezone" placeholder="e.g. Europe/London (Default: Config)" value="<?= htmlspecialchars((string)($user['timezone'] ?? '')) ?>">
+                        </div>
                     </div>
 
                     <div style="position:relative;">
@@ -618,6 +622,10 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
                             <option value="12h" <?= ($editRoom['time_format'] ?? '') === '12h' ? 'selected' : '' ?>>12-Hour (1:00 PM)</option>
                             <option value="24h" <?= ($editRoom['time_format'] ?? '') === '24h' ? 'selected' : '' ?>>24-Hour (13:00)</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Timezone Override</label>
+                        <input type="text" name="timezone" placeholder="e.g. Europe/London" value="<?= htmlspecialchars((string)($editRoom['timezone'] ?? '')) ?>">
                     </div>
                     <div class="form-group">
                         <label>Options</label>
