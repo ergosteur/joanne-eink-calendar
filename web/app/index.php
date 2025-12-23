@@ -755,13 +755,19 @@ function formatTime(input) {
   }
 
   const use24h = (timeFormat === '24h' || (timeFormat === 'auto' && lang === 'fr'));
-  
-  return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
+  const options = {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: !use24h,
     timeZone: serverTimezone
-  });
+  };
+
+  if (use24h) {
+    options.hourCycle = 'h23';
+  } else {
+    options.hour12 = true;
+  }
+  
+  return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", options);
 }
 
 const i18n = {
