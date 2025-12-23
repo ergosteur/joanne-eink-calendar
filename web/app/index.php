@@ -31,17 +31,19 @@ if ($roomConfig) {
 $lang = $_GET['lang'] ?? $config['ui']['lang'];
 $view = $roomConfig['view'] ?? 'room';
 $displayName = $roomConfig['display_name'] ?? "";
+$timeFormat = $roomConfig['time_format'] ?? "auto";
 $isPersonalizedUser = false;
 
 // If it's a personal view with a valid token, let the user's preference override the view
 if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT view, weather_lat, weather_lon, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
+    $stmt = $db->getPdo()->prepare("SELECT view, time_format, weather_lat, weather_lon, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
     $stmt->execute([$_GET['userid']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($user) {
         $isPersonalizedUser = true;
         $view = $user['view'];
         $displayName = $user['display_name'];
+        $timeFormat = $user['time_format'];
         if (!empty($user['weather_lat'])) {
             $weatherLat = $user['weather_lat'];
             $weatherLon = $user['weather_lon'];
@@ -704,6 +706,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room') || 'default';
 const view = "<?= htmlspecialchars($view) ?>";
 const displayName = "<?= htmlspecialchars((string)$displayName) ?>";
+const timeFormat = "<?= htmlspecialchars($timeFormat) ?>";
 const showRss = <?= $showRss ? 'true' : 'false' ?>;
 const showWeather = <?= $showWeather ? 'true' : 'false' ?>;
 const showWeatherWidget = <?= $showWeatherWidget ? 'true' : 'false' ?>;
@@ -730,6 +733,30 @@ function resetWeek() {
   dateOffset = 0;
   updateClock();
   renderCalendar(lastData);
+}
+
+/**
+ * Global Time Formatter
+ * Handles 12h, 24h, and language-aware defaults
+ * @param {string|Date} input - Date object or "HH:MM" string
+ */
+function formatTime(input) {
+  let date;
+  if (input instanceof Date) {
+    date = input;
+  } else {
+    const [h, m] = input.split(":").map(Number);
+    date = new Date();
+    date.setHours(h, m, 0, 0);
+  }
+
+  const use24h = (timeFormat === '24h' || (timeFormat === 'auto' && lang === 'fr'));
+  
+  return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: !use24h
+  });
 }
 
 const i18n = {
@@ -843,11 +870,7 @@ function updateClock() {
       if (dateOffset !== 0) {
         timeBtn.textContent = t.ReturnToToday;
       } else {
-        const timeStr = now.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-        timeBtn.textContent = timeStr;
+        timeBtn.textContent = formatTime(now);
       }
   }
 
@@ -955,7 +978,7 @@ function renderCalendar(data) {
         <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
             ${todayObj.events.slice(0, 5).map(e => `
                 <li class="grid-event-item" title="${e.summary}">
-                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time + " — " + e.ends}</span>
+                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.time) + " — " + formatTime(e.ends)}</span>
                     ${e.summary}
                 </li>
             `).join('')}
@@ -990,7 +1013,7 @@ function renderCalendar(data) {
           <ul class="grid-event-list">
             ${day.events.slice(0, 3).map(e => `
               <li class="grid-event-item" title="${e.summary}">
-                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : e.time + " — " + e.ends}</span>
+                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.time) + " — " + formatTime(e.ends)}</span>
                 ${e.summary}
               </li>
             `).join('')}
@@ -1032,7 +1055,7 @@ function renderCalendar(data) {
             <li class="upcoming-item">
               <div class="upcoming-date">${ev.is_today ? t.Today : ev.date}</div>
               <div class="upcoming-summary">${ev.summary}</div>
-              <div class="upcoming-time">${ev.is_allday ? t.AllDay : ev.time + " — " + ev.ends}</div>
+              <div class="upcoming-time">${ev.is_allday ? t.AllDay : formatTime(ev.time) + " — " + formatTime(ev.ends)}</div>
             </li>
           `).join('')}
         </ul>
@@ -1086,7 +1109,7 @@ function renderEventInfo(data, eventEl, t) {
         <div style="margin-top: 12px; font-size: 1em;">
           ${t.EndsIn(mins)}<br>
           <span style="font-size: 0.85em;">
-            ${t.At} ${data.current.ends}
+            ${t.At} ${formatTime(data.current.ends)}
           </span>
         </div>
       `;
@@ -1106,13 +1129,13 @@ function renderEventInfo(data, eventEl, t) {
         ? `
           <div style="color:#666; margin-bottom:4px;">${t.Next}:</div>
           <strong>
-            ${data.next.time} — ${data.next.ends} (${dur}) : ${data.next.summary}
+            ${formatTime(data.next.time)} — ${formatTime(data.next.ends)} (${dur}) : ${data.next.summary}
           </strong>
         `
         : `
           <div style="color:#666; margin-bottom:4px;">${nextLabel}:</div>
           <strong>
-            ${data.next.date} @ ${data.next.time} — ${data.next.ends} (${dur})<br>
+            ${data.next.date} @ ${formatTime(data.next.time)} — ${formatTime(data.next.ends)} (${dur})<br>
             ${data.next.summary}
           </strong>
         `;

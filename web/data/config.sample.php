@@ -14,6 +14,7 @@ return [
                 'demo.ics.php'
             ],
             'view' => 'room',
+            'time_format' => 'auto', // '12h', '24h', or 'auto' (language-based)
             'show_rss' => true,
             'show_weather' => true,
         ],
@@ -31,6 +32,7 @@ return [
                 'demo.ics.php'
             ],
             'view' => 'dashboard',
+            'time_format' => 'auto',
             'show_rss' => true,
             'show_weather' => true,
         ],
@@ -41,6 +43,7 @@ return [
                 'demo.ics.php'
             ],
             'view' => 'grid',
+            'time_format' => 'auto',
             'show_rss' => true,
             'show_weather' => true,
         ],

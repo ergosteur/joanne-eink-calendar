@@ -24,6 +24,7 @@ class LibreDb {
             weather_lon REAL,
             weather_city TEXT,
             display_name TEXT,
+            time_format TEXT DEFAULT 'auto',
             past_horizon INTEGER DEFAULT 30,
             future_horizon INTEGER DEFAULT 30
         )");
@@ -42,6 +43,7 @@ class LibreDb {
             display_name TEXT,
             calendar_url TEXT,
             view TEXT DEFAULT 'room',
+            time_format TEXT DEFAULT 'auto',
             show_rss INTEGER DEFAULT 1,
             show_weather INTEGER DEFAULT 1,
             weather_lat REAL,
@@ -56,6 +58,7 @@ class LibreDb {
         $this->ensureColumn('users', 'weather_lon', 'REAL');
         $this->ensureColumn('users', 'weather_city', 'TEXT');
         $this->ensureColumn('users', 'display_name', 'TEXT');
+        $this->ensureColumn('users', 'time_format', 'TEXT');
         $this->ensureColumn('users', 'past_horizon', 'INTEGER');
         $this->ensureColumn('users', 'future_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'weather_lat', 'REAL');
@@ -64,6 +67,7 @@ class LibreDb {
         $this->ensureColumn('rooms', 'past_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'future_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'display_name', 'TEXT');
+        $this->ensureColumn('rooms', 'time_format', 'TEXT');
     }
 
     private function ensureColumn($table, $column, $type) {
@@ -96,6 +100,7 @@ class LibreDb {
             $room['past_horizon'] = (int)($room['past_horizon'] ?: 30);
             $room['future_horizon'] = (int)($room['future_horizon'] ?: 30);
             $room['display_name'] = (string)$room['display_name'];
+            $room['time_format'] = (string)($room['time_format'] ?: 'auto');
         }
         return $room;
     }
