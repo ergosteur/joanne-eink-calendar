@@ -958,6 +958,7 @@ function renderCalendar(data) {
         todayWeatherHtml = `
             <div class="grid-weather">
               <div class="grid-weather-label">
+                <span style="font-weight: 800; color: #666; margin-bottom: 2px;">${weatherCity}</span>
                 <span>${desc}</span>
               </div>
               <i class="wi ${iconClass}"></i>
