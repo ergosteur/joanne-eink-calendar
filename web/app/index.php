@@ -485,6 +485,8 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
             text-transform: uppercase;
             display: flex;
             flex-direction: column;
+            align-items: flex-end; /* Right-align flex items */
+            text-align: right;     /* Right-align text content */
             line-height: 1;
             margin-left: -4px;
         }
