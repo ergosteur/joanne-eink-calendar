@@ -749,7 +749,12 @@ function formatTime(input) {
   let date;
   if (input instanceof Date) {
     date = input;
+  } else if (typeof input === 'string' && input.includes('T')) {
+    // Robust handling for ISO strings
+    date = new Date(input);
   } else {
+    // Fallback for "HH:MM" strings (Legacy/Static data)
+    // WARNING: This assumes the browser's local date, which is risky
     const [h, m] = input.split(":").map(Number);
     date = new Date();
     date.setHours(h, m, 0, 0);
@@ -1031,7 +1036,7 @@ function renderCalendar(data) {
         <ul class="grid-event-list" style="font-size: 24px; margin-top: 12px;">
             ${todayObj.events.slice(0, 5).map(e => `
                 <li class="grid-event-item" title="${e.summary}">
-                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.time) + " — " + formatTime(e.ends)}</span>
+                    <span style="font-weight: 700; font-size: 14px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.start_iso) + " — " + formatTime(e.end_iso)}</span>
                     ${e.summary}
                 </li>
             `).join('')}
@@ -1066,7 +1071,7 @@ function renderCalendar(data) {
           <ul class="grid-event-list">
             ${day.events.slice(0, 3).map(e => `
               <li class="grid-event-item" title="${e.summary}">
-                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.time) + " — " + formatTime(e.ends)}</span>
+                <span style="font-weight: 700; font-size: 12px; display: block; line-height: 1;">${e.is_allday ? t.AllDay : formatTime(e.start_iso) + " — " + formatTime(e.end_iso)}</span>
                 ${e.summary}
               </li>
             `).join('')}
@@ -1108,7 +1113,7 @@ function renderCalendar(data) {
             <li class="upcoming-item">
               <div class="upcoming-date">${ev.is_today ? t.Today : ev.date}</div>
               <div class="upcoming-summary">${ev.summary}</div>
-              <div class="upcoming-time">${ev.is_allday ? t.AllDay : formatTime(ev.time) + " — " + formatTime(ev.ends)}</div>
+              <div class="upcoming-time">${ev.is_allday ? t.AllDay : formatTime(ev.start_iso) + " — " + formatTime(ev.end_iso)}</div>
             </li>
           `).join('')}
         </ul>
@@ -1162,7 +1167,7 @@ function renderEventInfo(data, eventEl, t) {
         <div style="margin-top: 12px; font-size: 1em;">
           ${t.EndsIn(mins)}<br>
           <span style="font-size: 0.85em;">
-            ${t.At} ${formatTime(data.current.ends)}
+            ${t.At} ${formatTime(data.current.ends_iso)}
           </span>
         </div>
       `;
@@ -1182,13 +1187,13 @@ function renderEventInfo(data, eventEl, t) {
         ? `
           <div style="color:#666; margin-bottom:4px;">${t.Next}:</div>
           <strong>
-            ${formatTime(data.next.time)} — ${formatTime(data.next.ends)} (${dur}) : ${data.next.summary}
+            ${formatTime(data.next.start_iso)} — ${formatTime(data.next.end_iso)} (${dur}) : ${data.next.summary}
           </strong>
         `
         : `
           <div style="color:#666; margin-bottom:4px;">${nextLabel}:</div>
           <strong>
-            ${data.next.date} @ ${formatTime(data.next.time)} — ${formatTime(data.next.ends)} (${dur})<br>
+            ${data.next.date} @ ${formatTime(data.next.start_iso)} — ${formatTime(data.next.end_iso)} (${dur})<br>
             ${data.next.summary}
           </strong>
         `;

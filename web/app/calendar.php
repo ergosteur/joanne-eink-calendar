@@ -227,6 +227,8 @@ foreach ($events as $event) {
             "date" => $event["start"]->format("Y-m-d"),
             "time" => $event["start"]->format("H:i"),
             "ends" => $event["end"]->format("H:i"),
+            "start_iso" => $event["start"]->format(DateTime::ATOM),
+            "end_iso" => $event["end"]->format(DateTime::ATOM),
             "duration" => round(($event["end"]->getTimestamp() - $event["start"]->getTimestamp()) / 60),
             "is_today" => $event["start"]->format("Y-m-d") === $now->format("Y-m-d"),
             "is_allday" => $event["is_allday"],
@@ -252,7 +254,8 @@ $response = [
         "date" => $next["start"]->format("Y-m-d"),
         "time" => $next["start"]->format("H:i"),
         "ends" => $next["end"]->format("H:i"),
-        "ends_iso" => $next["end"]->format(DateTime::ATOM),
+        "start_iso" => $next["start"]->format(DateTime::ATOM),
+        "end_iso" => $next["end"]->format(DateTime::ATOM),
         "duration" => round(($next["end"]->getTimestamp() - $next["start"]->getTimestamp()) / 60),
         "same_day" => $next["start"]->format("Y-m-d") === $now->format("Y-m-d"),
         "is_allday" => $next["is_allday"]
