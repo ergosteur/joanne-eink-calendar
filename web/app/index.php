@@ -722,6 +722,7 @@ const serverTimezone = "<?= $activeTimezone ?>";
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars((string)$lang) ?>";
+let is24h = (timeFormat === '24h' || (timeFormat === 'auto' && lang === 'fr'));
 let lastData = null;
 let lastWeatherData = null;
 let autoLangTimer = null;
@@ -754,14 +755,7 @@ function formatTime(input) {
     date.setHours(h, m, 0, 0);
   }
 
-  const use24h = (timeFormat === '24h' || (timeFormat === 'auto' && lang === 'fr'));
-  const options = {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: serverTimezone
-  };
-
-  if (use24h) {
+  if (is24h) {
     const formatter = new Intl.DateTimeFormat('en-GB', {
       hour: '2-digit',
       minute: '2-digit',
@@ -773,8 +767,12 @@ function formatTime(input) {
     const m = parts.find(p => p.type === 'minute').value;
     return `${h}:${m}`;
   } else {
-    options.hour12 = true;
-    return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", options);
+    return date.toLocaleTimeString(lang === "en" ? "en-CA" : "fr-CA", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: serverTimezone
+    });
   }
 }
 
@@ -828,6 +826,7 @@ function updateUI() {
 
 function switchLanguage() {
   lang = lang === "en" ? "fr" : "en";
+  is24h = (timeFormat === '24h' || (timeFormat === 'auto' && lang === 'fr'));
   updateUI();
   if (showRss) fetchNews(); // Refresh news for the new language
   if (showWeather) fetchWeather(); // Refresh weather for the new language
@@ -893,12 +892,14 @@ function updateClock() {
         let timeStr = formatTime(now);
         
         // Always append a small timezone/offset label
-        const formatter = new Intl.DateTimeFormat('en-US', {
+        // We use en-US to get a standard abbreviation like "EST" or "GMT"
+        const tzFormatter = new Intl.DateTimeFormat('en-US', {
             timeZone: serverTimezone,
-            timeZoneName: 'short'
+            timeZoneName: 'short',
+            hour: 'numeric' // Force time parts to ensure tz is separate
         });
-        const parts = formatter.formatToParts(now);
-        const tzPart = parts.find(p => p.type === 'timeZoneName');
+        const tzParts = tzFormatter.formatToParts(now);
+        const tzPart = tzParts.find(p => p.type === 'timeZoneName');
         if (tzPart) {
             timeStr += `<span style="font-size: 14px; margin-left: 8px; font-weight: 500;">${tzPart.value}</span>`;
         }
