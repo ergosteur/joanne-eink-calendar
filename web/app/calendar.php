@@ -239,10 +239,12 @@ foreach ($events as $event) {
 // Build response
 $response = [
     "now" => $now->format(DateTime::ATOM),
-    "status" => $current ? "IN USE" : "AVAILABLE",
+    "now_ts" => $now->getTimestamp(),
+    "status" => $current ? "IN_USE" : "AVAILABLE",
     "current" => $current ? [
         "summary" => $current["summary"],
         "ends" => $current["end"]->format("H:i"),
+        "ends_iso" => $current["end"]->format(DateTime::ATOM),
         "is_allday" => $current["is_allday"]
     ] : null,
     "next" => $next ? [
@@ -250,6 +252,7 @@ $response = [
         "date" => $next["start"]->format("Y-m-d"),
         "time" => $next["start"]->format("H:i"),
         "ends" => $next["end"]->format("H:i"),
+        "ends_iso" => $next["end"]->format(DateTime::ATOM),
         "duration" => round(($next["end"]->getTimestamp() - $next["start"]->getTimestamp()) / 60),
         "same_day" => $next["start"]->format("Y-m-d") === $now->format("Y-m-d"),
         "is_allday" => $next["is_allday"]

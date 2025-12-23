@@ -944,17 +944,9 @@ function getServerNow() {
 }
 
 /* ---------- CALENDAR ---------- */
-function minutesUntil(endHHMM, serverNowStr) {
-  const [h, m] = endHHMM.split(":").map(Number);
-  
-  // Use the server's concept of 'now' if provided, otherwise calculate from browser
-  const now = serverNowStr ? new Date(serverNowStr) : getServerNow();
-  
-  const end = new Date(now);
-  end.setHours(h, m, 0, 0);
-  
-  // If the end time is in the past compared to 'now', it might be past midnight
-  // But for "Ends In", we assume it's same-day.
+function minutesUntil(endIso, serverNowStr) {
+  const end = new Date(endIso);
+  const now = serverNowStr ? new Date(serverNowStr) : new Date();
   return Math.max(0, Math.round((end - now) / 60000));
 }
 
@@ -1102,7 +1094,7 @@ function renderCalendar(data) {
     // 1. Upcoming list (always shown now)
     let upcomingHtml = "";
     if (data.upcoming && data.upcoming.length > 0) {
-      const nowTs = Math.floor(Date.now() / 1000);
+      const nowTs = data.now_ts;
       const futureEvents = data.upcoming.filter(e => e.end_ts > nowTs);
 
       let upcomingLimit = isRoom ? 3 : 4;
@@ -1153,7 +1145,7 @@ function renderEventInfo(data, eventEl, t) {
   const noLabel   = isPersonal ? t.NoEvents : t.NoMeetings;
   const currentLabel = displayName || t.Now;
 
-  if (data.status === "IN USE" && data.current) {
+  if (data.status === "IN_USE" && data.current) {
     if (data.current.is_allday) {
       eventEl.innerHTML = `
         <div style="color:#666; margin-bottom:4px;">${currentLabel}:</div>
@@ -1163,7 +1155,7 @@ function renderEventInfo(data, eventEl, t) {
         </div>
       `;
     } else {
-      const mins = minutesUntil(data.current.ends, data.now);
+      const mins = minutesUntil(data.current.ends_iso, data.now);
       eventEl.innerHTML = `
         <div style="color:#666; margin-bottom:4px;">${currentLabel}:</div>
         <strong>${data.current.summary}</strong>
