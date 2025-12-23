@@ -92,9 +92,16 @@ function getICS($url, $ttl) {
         $fetchUrl = __DIR__ . "/" . $url;
     }
 
-    $ics = @file_get_contents($fetchUrl, false, $context);
+    // If it's a local PHP file, execute it to get the iCal content
+    if (str_ends_with($fetchUrl, '.php') && !isValidWebUrl($url)) {
+        ob_start();
+        include $fetchUrl;
+        $ics = ob_get_clean();
+    } else {
+        $ics = @file_get_contents($fetchUrl, false, $context);
+    }
     
-    if ($ics === false) {
+    if ($ics === false || empty($ics)) {
         return file_exists($cacheFile) ? file_get_contents($cacheFile) : false;
     }
 
