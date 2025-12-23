@@ -58,7 +58,7 @@ return [
     ],
     'security' => [
         'db_path' => __DIR__ . '/librejoanne.db',
-        'encryption_key' => 'REPLACE_WITH_RANDOM_SECRET_KEY', // Used to protect stored URLs
+        'encryption_key' => 'ChangeThisToSomethingRandomAndSecret', // Used to protect stored URLs
         'setup_password' => 'admin123' // Only used for initial setup
     ]
 ];
