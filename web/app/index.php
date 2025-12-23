@@ -295,11 +295,11 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
         }
 
         .dashboard-left {
-            flex: 0 0 75%;
+            flex: 0 0 70%;
         }
 
         .dashboard-right {
-            flex: 0 0 25%;
+            flex: 0 0 30%;
             border-left: 1px solid #eee;
             padding-left: 32px;
         }
