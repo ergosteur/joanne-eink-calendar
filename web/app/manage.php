@@ -303,6 +303,9 @@ if ($_SESSION['is_admin']) {
 
 $users = $pdo->query("SELECT * FROM users")->fetchAll(PDO::FETCH_ASSOC);
 $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
+
+// Generate Timezone list for autocomplete
+$allTimezones = DateTimeZone::listIdentifiers();
 ?>
 
 <!DOCTYPE html>
@@ -492,7 +495,7 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div class="form-group">
                             <label>Timezone Override</label>
-                            <input type="text" name="timezone" placeholder="e.g. Europe/London (Default: Config)" value="<?= htmlspecialchars((string)($user['timezone'] ?? '')) ?>">
+                            <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London (Default: Config)" value="<?= htmlspecialchars((string)($user['timezone'] ?? '')) ?>">
                         </div>
                     </div>
 
@@ -625,7 +628,7 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="form-group">
                         <label>Timezone Override</label>
-                        <input type="text" name="timezone" placeholder="e.g. Europe/London" value="<?= htmlspecialchars((string)($editRoom['timezone'] ?? '')) ?>">
+                        <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London" value="<?= htmlspecialchars((string)($editRoom['timezone'] ?? '')) ?>">
                     </div>
                     <div class="form-group">
                         <label>Options</label>
@@ -686,5 +689,11 @@ $rooms = $pdo->query("SELECT * FROM rooms")->fetchAll(PDO::FETCH_ASSOC);
             <p><strong>Note:</strong> Rooms defined in <code>config.php</code> are still active but will be overridden by database rooms with the same key.</p>
         </div>
     <?php endif; ?>
+
+    <datalist id="timezone-list">
+        <?php foreach ($allTimezones as $tz): ?>
+            <option value="<?= htmlspecialchars($tz) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
 </body>
 </html>
