@@ -979,19 +979,21 @@ function renderCalendar(data) {
     // eventEl is not needed in the detailed merged view, we list events directly
     // renderEventInfo(data, eventEl, t); // Removing to avoid confusion
 
-  } else if (view === "dashboard") {
+  } else if (view === "dashboard" || view === "room") {
+    const isRoom = (view === "room");
+    
+    // 1. Upcoming list (always shown now)
     let upcomingHtml = "";
     if (data.upcoming && data.upcoming.length > 0) {
-      // Filter for strictly future events (or events currently in progress)
       const nowTs = Math.floor(Date.now() / 1000);
       const futureEvents = data.upcoming.filter(e => e.end_ts > nowTs);
 
-      let upcomingLimit = 4;
+      let upcomingLimit = isRoom ? 3 : 4;
       if (!showRss) upcomingLimit += 1;
       if (!showWeather) upcomingLimit += 2;
       
       upcomingHtml = `
-        <div class="room-name" style="position:static; font-size:16px; margin-bottom:8px; color:#999;">${t.Upcoming}</div>
+        <div class="room-name" style="position:static; font-size:16px; margin-bottom:8px; color:#666; letter-spacing:1px;">${t.Upcoming}</div>
         <ul class="upcoming-list">
           ${futureEvents.slice(0, upcomingLimit).map(ev => `
             <li class="upcoming-item">
@@ -1004,16 +1006,17 @@ function renderCalendar(data) {
       `;
     }
 
-    let currentHtml = `
-      <div id="status" class="status" style="font-size: 52px; margin-bottom: 16px;">${t[data.status]}</div>
-      <div id="event" class="event" style="font-size: 28px;"></div>
-    `;
+    // 2. Status & Event sizing
+    const statusSize = isRoom ? "96px" : "52px";
+    const eventSize = isRoom ? "36px" : "28px";
+    const roomNameSize = isRoom ? "24px" : "20px";
 
     mainEl.innerHTML = `
-      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: 20px; color:#000;">${translatedRoomName}</div>
+      <div class="room-name" style="position:static; margin-bottom: 20px; font-size: ${roomNameSize};">${translatedRoomName}</div>
       <div class="dashboard-container">
         <div class="dashboard-left" id="dashboard-left-content">
-          ${currentHtml}
+          <div id="status" class="status" style="font-size: ${statusSize}; margin-bottom: 16px;">${t[data.status]}</div>
+          <div id="event" class="event" style="font-size: ${eventSize};"></div>
         </div>
         <div class="dashboard-right">
           ${upcomingHtml}
@@ -1021,16 +1024,6 @@ function renderCalendar(data) {
       </div>
     `;
     
-    const eventEl = mainEl.querySelector("#event");
-    renderEventInfo(data, eventEl, t);
-    
-  } else {
-    // Standard Room View
-    mainEl.innerHTML = `
-      <div class="room-name">${translatedRoomName}</div>
-      <div id="status" class="status">${t[data.status]}</div>
-      <div id="event" class="event"></div>
-    `;
     const eventEl = mainEl.querySelector("#event");
     renderEventInfo(data, eventEl, t);
   }
@@ -1046,20 +1039,20 @@ function renderEventInfo(data, eventEl, t) {
   if (data.status === "IN USE" && data.current) {
     if (data.current.is_allday) {
       eventEl.innerHTML = `
-        ${currentLabel}:
+        <div style="color:#666; margin-bottom:4px;">${currentLabel}:</div>
         <strong>${data.current.summary}</strong>
-        <div style="margin-top: 12px; font-size: 34px;">
+        <div style="margin-top: 12px; font-size: 1em;">
           ${t.AllDay}
         </div>
       `;
     } else {
       const mins = minutesUntil(data.current.ends);
       eventEl.innerHTML = `
-        ${currentLabel}:
+        <div style="color:#666; margin-bottom:4px;">${currentLabel}:</div>
         <strong>${data.current.summary}</strong>
-        <div style="margin-top: 12px; font-size: 34px;">
+        <div style="margin-top: 12px; font-size: 1em;">
           ${t.EndsIn(mins)}<br>
-          <span style="font-size: 30px;">
+          <span style="font-size: 0.85em;">
             ${t.At} ${data.current.ends}
           </span>
         </div>
@@ -1068,7 +1061,7 @@ function renderEventInfo(data, eventEl, t) {
   } else if (data.next) {
     if (data.next.is_allday) {
       eventEl.innerHTML = `
-        ${nextLabel}:
+        <div style="color:#666; margin-bottom:4px;">${nextLabel}:</div>
         <strong>
           ${data.next.date}<br>
           ${data.next.summary}
@@ -1078,13 +1071,13 @@ function renderEventInfo(data, eventEl, t) {
       const dur = data.next.duration + "m";
       eventEl.innerHTML = data.next.same_day
         ? `
-          ${t.Next}:
+          <div style="color:#666; margin-bottom:4px;">${t.Next}:</div>
           <strong>
             ${data.next.time} — ${data.next.ends} (${dur}) : ${data.next.summary}
           </strong>
         `
         : `
-          ${nextLabel}:
+          <div style="color:#666; margin-bottom:4px;">${nextLabel}:</div>
           <strong>
             ${data.next.date} @ ${data.next.time} — ${data.next.ends} (${dur})<br>
             ${data.next.summary}
@@ -1092,7 +1085,7 @@ function renderEventInfo(data, eventEl, t) {
         `;
     }
   } else {
-    eventEl.textContent = noLabel;
+    eventEl.innerHTML = `<div style="color:#666;">${noLabel}</div>`;
   }
 }
 
