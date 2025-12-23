@@ -434,8 +434,6 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
             margin-bottom: 24px; /* Increased to push events below the number */
             position: relative;
             z-index: 1;
-            background: #fff;
-            padding-right: 4px;
             display: inline-block;
             align-self: flex-start;
         }
