@@ -769,7 +769,16 @@ function formatTime(input) {
     options.hour12 = true;
   }
 
-  return date.toLocaleTimeString(locale, options).replace(/\s/g, '');
+  let timeStr = date.toLocaleTimeString(locale, options);
+  
+  // Restore/Ensure spaces and convert a.m./p.m. -> AM/PM
+  // 1. Convert a.m. -> AM and p.m. -> PM
+  timeStr = timeStr.replace(/([ap])\.m\./gi, (m, p1) => p1.toUpperCase() + 'M');
+  
+  // 2. Normalize all whitespace (including non-breaking spaces) to a single standard space
+  timeStr = timeStr.replace(/[\s\u00A0\u202F]+/g, ' ').trim();
+
+  return timeStr;
 }
 
 const i18n = {
