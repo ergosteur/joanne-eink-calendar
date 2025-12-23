@@ -1,5 +1,5 @@
 <?php
-// web/data/config.sample.php - Template for LibreJoanne
+// web/config.php
 
 return [
     'rooms' => [
