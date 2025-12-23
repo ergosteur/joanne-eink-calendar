@@ -12,15 +12,16 @@ To provide a distraction-free, high-contrast, and bilingual interface for 6-inch
 - **Hardened Security**:
     - **SSRF Protection**: Strict URL validation for all external feeds (iCal/RSS).
     - **Predictive Defense**: Salted cache filenames to prevent unauthorized artifact guessing.
-    - **Self-Diagnostics**: Automated dashboard check to verify server-side directory protection (.htaccess/data-access).
-- **Contextual UI**: Adaptive terminology ("Meeting" vs "Event") and layouts (Room, Dashboard, Grid) based on the target audience. Supports personalized "Now" status labels via a "Status Label" (display_name) override for both rooms and users.
+    - **Self-Diagnostics**: Automated dashboard check to verify server-side directory protection for the `data/cache/` subdirectory.
+    - **Configuration Fallback**: Graceful automatic fallback to `config.sample.php` to ensure a working initial state for new deployments.
+- **Contextual UI**: Unified Room and Dashboard views into a shared split-screen layout while maintaining context-aware typography. Displays enriched event data including end times and durations. Supports personalized "Now" status labels via a "Status Label" (display_name) override for both rooms and users.
 - **Deep Diagnostics**: Native support for Visionect telemetry (IP, Battery, Signal) via headers and the `okular` JS object.
-- **Resilient Navigation**: Server-side caching combined with client-side state tracking allows users to browse up to 30 days of history and future schedules. Navigation controls are context-aware (only shown in Grid view).
+- **Resilient Navigation**: Server-side caching combined with client-side state tracking allows users to browse up to 30 days of history and future schedules. Access tokens (`?userid=`) automatically trigger personal context, simplifying URL deployment.
 - **Zero-Cache Strategy**: Core dynamic pages and API endpoints enforce strict `no-cache` headers to prevent stale data served by CDNs (Cloudflare) or browsers.
-- **Automated Cache Management**: The system automatically invalidates and refreshes local data caches whenever configurations are changed via the dashboard.
+- **Automated Cache Management**: Centralized cache storage in `web/data/cache/`. The system automatically invalidates and refreshes local data caches whenever configurations are changed via the dashboard.
 
 ## Key Subsystems
-- **Parser**: A robust iCal parser (`web/app/calendar.php`) that merges multiple feeds, handles DATE-only holidays, corrects line folding, and exports Unix timestamps for precise frontend filtering.
+- **Parser**: A robust iCal parser (`web/app/calendar.php`) that merges multiple feeds, handles DATE-only holidays, and corrects line folding. Supports internal execution of local PHP templates (e.g., `demo.ics.php`) for dynamic event generation.
 - **Weather Engine**: A custom local weather backend (`web/app/weather.php`) using Open-Meteo with 8-day forecasting and integrated city searching. Includes strict input sanitization.
 - **Aggregator**: A language-aware RSS aggregator (`web/app/rss.php`) serving shuffled, paged headlines.
 - **Management Dashboard**: A unified UI (`web/app/manage.php`) for managing rooms, users, horizons, and encrypted feeds with integrated login and RBAC.
