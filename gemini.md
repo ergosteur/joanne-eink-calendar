@@ -26,6 +26,21 @@ To provide a distraction-free, high-contrast, and bilingual interface for 6-inch
 - **Aggregator**: A language-aware RSS aggregator (`web/app/rss.php`) serving shuffled, paged headlines.
 - **Management Dashboard**: A unified UI (`web/app/manage.php`) for managing rooms, users, horizons, and encrypted feeds with integrated login and RBAC.
 
+## Testing & Validation
+When validating changes, always load the **full page content** (not just the headers) to catch PHP errors or warnings hidden in the HTML body.
+
+### Core Data Endpoints (JSON)
+- **Calendar**: `http://localhost:8000/calendar.php?room=default`
+- **RSS**: `http://localhost:8000/rss.php?lang=en`
+- **Weather**: `http://localhost:8000/weather.php?lat=43.65&lon=-79.38&city=Toronto`
+- **Geocoding**: `http://localhost:8000/geocoding.php?name=London`
+
+### UI View Modes (HTML)
+- **Room View (Default)**: `http://localhost:8000/`
+- **Dashboard View**: `http://localhost:8000/?room=personal`
+- **7-Day Grid View**: `http://localhost:8000/?room=personal-grid`
+- **User Token View**: `http://localhost:8000/?userid=[TOKEN]` (Fetch active tokens via `SELECT access_token FROM users LIMIT 1`)
+
 ## Roadmap & Expansion
 - **Interactive Occupancy**: Touch-based room check-ins and auto-release logic.
 - **Google Workspace API**: Direct integration for private resources and native booking.
