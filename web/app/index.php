@@ -5,73 +5,31 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 // Prevent caching of the main UI
 LibreApp::noCacheHeaders();
 
-$roomId = $_GET['room'] ?? 'default';
-$isDatabaseRoom = false;
+$ctx = LibreContext::resolve($config, $db, $_GET);
 
-// If a userid is provided, assume it's a personal view regardless of the room parameter
-if (!empty($_GET['userid'])) {
-    $roomId = 'personal';
-}
+$roomId             = $ctx->roomId;
+$roomConfig         = $ctx->roomConfig;
+$isDatabaseRoom     = $ctx->isDatabaseRoom;
+$isPersonalizedUser = $ctx->isPersonalizedUser;
+$lang               = $ctx->lang;
+$view               = $ctx->view;
+$displayName        = $ctx->displayName;
+$timeFormat         = $ctx->timeFormat;
+$activeTimezone     = $ctx->timezone;
+$showRss            = $ctx->showRss;
+$showWeather        = $ctx->showWeather;
+$weatherLat         = $ctx->weatherLat;
+$weatherLon         = $ctx->weatherLon;
+$weatherCity        = $ctx->weatherCity;
 
-// Try DB first, then config.php
-$roomConfig = $db->getRoomConfig($roomId);
-if ($roomConfig) {
-    $isDatabaseRoom = true;
-} else {
-    $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
-}
-
-$lang = $_GET['lang'] ?? $config['ui']['lang'];
-$view = $roomConfig['view'] ?? 'room';
-$displayName = $roomConfig['display_name'] ?? "";
-$timeFormat = $roomConfig['time_format'] ?? "auto";
-$activeTimezone = ($roomConfig['timezone'] ?? '') ?: $config['calendar']['timezone'];
-$isPersonalizedUser = false;
-
-// If it's a personal view with a valid token, let the user's preference override the view
-if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT view, time_format, timezone, weather_lat, weather_lon, weather_city, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
-    $stmt->execute([$_GET['userid']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($user) {
-        $isPersonalizedUser = true;
-        $view = $user['view'];
-        $displayName = $user['display_name'];
-        $timeFormat = $user['time_format'] ?: "auto";
-        if (!empty($user['timezone'])) $activeTimezone = $user['timezone'];
-        if (!empty($user['weather_lat'])) {
-            $weatherLat = $user['weather_lat'];
-            $weatherLon = $user['weather_lon'];
-            $weatherCity = $user['weather_city'];
-        }
-        if (!empty($user['past_horizon'])) $roomConfig['past_horizon'] = $user['past_horizon'];
-        if (!empty($user['future_horizon'])) $roomConfig['future_horizon'] = $user['future_horizon'];
-    }
-}
-
-// URL Override for View
-if (isset($_GET['view'])) {
-    $v = $_GET['view'];
-    if ($v === '7daygrid') $v = 'grid';
-    if (in_array($v, ['room', 'dashboard', 'grid'])) {
-        $view = $v;
-    }
-}
-
-$showRss = isset($_GET['show_rss']) ? (bool)$_GET['show_rss'] : ($roomConfig['show_rss'] ?? true);
-$showWeather = isset($_GET['show_weather']) ? (bool)$_GET['show_weather'] : ($roomConfig['show_weather'] ?? true);
-
+// The grid packs a full week plus a detailed today block; there is no room left
+// for the footer widgets.
 if ($view === 'grid') {
     $showRss = false;
     $showWeatherWidget = false;
 } else {
     $showWeatherWidget = $showWeather;
 }
-
-// Get Weather Coordinates
-$weatherLat = $weatherLat ?? $roomConfig['weather_lat'] ?? 43.65;
-$weatherLon = $weatherLon ?? $roomConfig['weather_lon'] ?? -79.38;
-$weatherCity = $weatherCity ?? $roomConfig['weather_city'] ?? 'Toronto';
 
 // Capture Device Status (More robust detection for different gateway versions)
 $devIp = $_SERVER['HTTP_X_VISIONECT_DEVICE_IP'] ?? $_SERVER['HTTP_X_DEVICE_IP'] ?? $_GET['dev_ip'] ?? null;
@@ -86,18 +44,9 @@ if (function_exists('getallheaders')) {
     $devSig = $devSig ?? $headers['X-Visionect-Signal'] ?? $headers['X-Signal'] ?? null;
 }
 
-// Detect if we are using the demo calendar
-$usingDemoCalendar = false;
-$checkUrls = is_array($roomConfig['calendar_url'] ?? []) 
-    ? $roomConfig['calendar_url'] 
-    : [$roomConfig['calendar_url'] ?? ''];
-
-foreach ($checkUrls as $u) {
-    if (str_contains($u, 'demo.ics.php')) {
-        $usingDemoCalendar = true;
-        break;
-    }
-}
+// Demo mode keys off the feeds actually in use, so a user whose own calendars have
+// replaced the personal template is not reported as a demo device.
+$usingDemoCalendar = $ctx->usingDemoCalendar;
 
 // Dummy values for demo rooms if no real data provided
 if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
@@ -709,8 +658,8 @@ const showWeatherWidget = <?= $showWeatherWidget ? 'true' : 'false' ?>;
 const weatherLat = <?= (float)$weatherLat ?>;
 const weatherLon = <?= (float)$weatherLon ?>;
 const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
-const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
-const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
+const pastHorizon = <?= (int)$ctx->pastHorizon ?>;
+const futureHorizon = <?= (int)$ctx->futureHorizon ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
 const isPersonalizedUser = <?= $isPersonalizedUser ? 'true' : 'false' ?>;
 
@@ -726,7 +675,7 @@ let statusLabel = "";
 
 function updateLabels() {
   const t = i18n[lang];
-  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
+  const rawRoomName = "<?= htmlspecialchars((string)($roomConfig['name'] ?? '')) ?>";
   
   if (isPersonalizedUser) {
     headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);

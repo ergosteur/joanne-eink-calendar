@@ -6,76 +6,24 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 
 $calConfig = $config['calendar'];
 
-$roomId = $_GET['room'] ?? 'default';
+$ctx = LibreContext::resolve($config, $db, $_GET);
 
-if (!empty($_GET['userid'])) {
-    $roomId = 'personal';
-}
-
-// Try DB first, then config.php
-$roomConfig = $db->getRoomConfig($roomId);
-if (!$roomConfig) {
-    $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
-}
-
-$activeTimezone = ($roomConfig['timezone'] ?? '') ?: $calConfig['timezone'];
-
-if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT timezone FROM users WHERE access_token = ?");
-    $stmt->execute([$_GET['userid']]);
-    $userTz = $stmt->fetchColumn();
-    if ($userTz) {
-        $activeTimezone = $userTz;
-    }
-}
-
+$activeTimezone = $ctx->timezone;
 date_default_timezone_set($activeTimezone);
 
-$urls = is_array($roomConfig['calendar_url'] ?? null) 
-        ? $roomConfig['calendar_url'] 
-        : [$roomConfig['calendar_url'] ?? ''];
-$urls = array_filter($urls); // Remove empty strings/nulls
+$urls = $ctx->calendarUrls;
 
-// Check for Database override via userid token
-if (!empty($_GET['userid'])) {
-    $dbUrls = $db->getCalendarsByToken($_GET['userid']);
-    if (!empty($dbUrls)) {
-        $urls = $dbUrls;
-    }
-}
-
-// Security: Validate URLs (SSRF Protection)
 function isValidWebUrl($url) {
     return LibreDb::isValidRemoteUrl($url);
 }
-
-// Allow overriding via ?cal= only for the personal room
-if ($roomId === 'personal' && !empty($_GET['cal'])) {
-    $overrides = is_array($_GET['cal']) ? $_GET['cal'] : [$_GET['cal']];
-    // Strict filtering for user input
-    $overrides = array_filter($overrides, 'isValidWebUrl');
-    $urls = array_merge($urls, $overrides);
-}
-
-// Note: We do NOT filter $urls here because we trust Config/DB URLs to contain local paths if needed.
 
 function unescapeIcal($text) {
     return str_replace(['\\,', '\\;', '\\\\', '\\n', '\\N'], [',', ';', '\\', "\n", "\n"], $text);
 }
 
 $CACHE_TTL  = $calConfig['cache_ttl'];
-$pastDays = (int)($roomConfig['past_horizon'] ?? 30);
-$futureDays = (int)($roomConfig['future_horizon'] ?? 30);
-
-if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT past_horizon, future_horizon FROM users WHERE access_token = ?");
-    $stmt->execute([$_GET['userid']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($user) {
-        $pastDays = (int)($user['past_horizon'] ?: $pastDays);
-        $futureDays = (int)($user['future_horizon'] ?: $futureDays);
-    }
-}
+$pastDays   = $ctx->pastHorizon;
+$futureDays = $ctx->futureHorizon;
 
 LibreApp::jsonHeaders();
 
