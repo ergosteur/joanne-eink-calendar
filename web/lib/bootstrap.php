@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/context.php';
+require_once __DIR__ . '/ical.php';
 
 class LibreApp
 {

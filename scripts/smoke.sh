@@ -104,6 +104,17 @@ if [ "$DO_LINT" = 1 ]; then
     done
 fi
 
+# ------------------------------------------------------------------ unit checks
+
+head_ "Parser"
+if unit_out=$("$PHP" "$REPO_ROOT/scripts/test-ical.php" 2>&1 </dev/null); then
+    printf '%s\n' "$unit_out" | grep -E '^\s+(PASS|FAIL)' | sed 's/^  /  /'
+    PASS=$((PASS + $(printf '%s\n' "$unit_out" | grep -c 'PASS')))
+else
+    printf '%s\n' "$unit_out" | tail -20
+    FAIL=$((FAIL+1))
+fi
+
 # ---------------------------------------------------------------------- server
 
 head_ "Server"

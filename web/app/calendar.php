@@ -17,10 +17,6 @@ function isValidWebUrl($url) {
     return LibreDb::isValidRemoteUrl($url);
 }
 
-function unescapeIcal($text) {
-    return str_replace(['\\,', '\\;', '\\\\', '\\n', '\\N'], [',', ';', '\\', "\n", "\n"], $text);
-}
-
 $CACHE_TTL  = $calConfig['cache_ttl'];
 $pastDays   = $ctx->pastHorizon;
 $futureDays = $ctx->futureHorizon;
@@ -76,18 +72,12 @@ function getICS($url, $ttl) {
     return $ics;
 }
 
-function parseIcsDate($dateStr, $timezone) {
-    // Handle DATE-only format: 20251225
-    if (strlen($dateStr) === 8) {
-        return DateTime::createFromFormat('!Ymd', $dateStr, new DateTimeZone($timezone));
-    }
-    // UTC format: 20231221T150000Z
-    if (str_ends_with($dateStr, 'Z')) {
-        return DateTime::createFromFormat('Ymd\THis\Z', $dateStr, new DateTimeZone('UTC'));
-    }
-    // Local format: 20231221T150000
-    return DateTime::createFromFormat('Ymd\THis', $dateStr, new DateTimeZone($timezone));
-}
+$displayTz = new DateTimeZone($activeTimezone);
+$feedDefaultTz = LibreIcal::timezone((string)$calConfig['timezone'], $displayTz);
+
+// Recurrence is expanded against this window, so the horizons bound the work.
+$windowStart = (new DateTimeImmutable('now', $displayTz))->modify("-{$pastDays} days");
+$windowEnd   = (new DateTimeImmutable('now', $displayTz))->modify("+{$futureDays} days");
 
 $events = [];
 
@@ -95,45 +85,8 @@ foreach ($urls as $url) {
     $ics = getICS($url, $CACHE_TTL);
     if ($ics === false) continue;
 
-    // Unfold lines
-    $ics = preg_replace('/\r\n[\x20\x09]/', '', $ics);
-
-    if (preg_match_all('/BEGIN:VEVENT(.*?)END:VEVENT/s', $ics, $matches)) {
-        foreach ($matches[1] as $block) {
-            $event = [];
-            $isAllDay = false;
-            
-            // DTSTART
-            if (preg_match('/^DTSTART(?:;VALUE=(DATE)|;TZID=([^:]+))?:(\d+T?\d*Z?)/m', $block, $m)) {
-                $tzName = !empty($m[2]) ? $m[2] : $calConfig['timezone'];
-                $event['start'] = parseIcsDate($m[3], $tzName);
-                if ($m[1] === 'DATE') $isAllDay = true;
-            }
-            
-            // DTEND
-            if (preg_match('/^DTEND(?:;VALUE=(DATE)|;TZID=([^:]+))?:(\d+T?\d*Z?)/m', $block, $m)) {
-                $tzName = !empty($m[2]) ? $m[2] : $activeTimezone;
-                $event['end'] = parseIcsDate($m[3], $tzName);
-            }
-            
-            // SUMMARY
-            if (preg_match('/^SUMMARY:(.*)/m', $block, $m)) {
-                $event['summary'] = unescapeIcal(trim($m[1]));
-            }
-
-            if (isset($event['start'], $event['end'], $event['summary'])) {
-                $event['is_allday'] = $isAllDay;
-                
-                // If it's a timed event, convert it from its source TZ to local TZ
-                if (!$isAllDay) {
-                    $event['start']->setTimezone(new DateTimeZone($activeTimezone));
-                    $event['end']->setTimezone(new DateTimeZone($activeTimezone));
-                }
-                // All-day events were parsed directly into local timezone by parseIcsDate
-                
-                $events[] = $event;
-            }
-        }
+    foreach (LibreIcal::parseEvents($ics, $feedDefaultTz, $displayTz, $windowStart, $windowEnd) as $event) {
+        $events[] = $event;
     }
 }
 
@@ -144,8 +97,10 @@ $now = new DateTime("now", new DateTimeZone($activeTimezone));
 $current = null;
 $next = null;
 $upcoming = [];
-$pastHorizon = (clone $now)->modify("-{$pastDays} days");
-$futureHorizon = (clone $now)->modify("+{$futureDays} days");
+// Same bounds the parser expanded against, so the display list cannot disagree
+// with what recurrence produced.
+$pastHorizon = $windowStart;
+$futureHorizon = $windowEnd;
 
 foreach ($events as $event) {
     // 1. Identify currently active meeting
