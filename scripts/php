@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# scripts/php — resolve a PHP interpreter and forward all arguments to it.
+#
+# Resolution order:
+#   1. $PHP_BIN, if set
+#   2. a php on PATH
+#   3. the pinned container image, via podman or docker
+#
+# The container is run with --network host and the repo bind-mounted at its real
+# path, so `scripts/php -S 127.0.0.1:8111 -t web/app` and `scripts/php -l <abs path>`
+# behave the same whether PHP is native or containerised.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PHP_IMAGE="${PHP_IMAGE:-docker.io/library/php:8.3-cli}"
+
+if [ -n "${PHP_BIN:-}" ]; then
+    exec "$PHP_BIN" "$@"
+fi
+
+if command -v php >/dev/null 2>&1; then
+    exec php "$@"
+fi
+
+# Keep the caller's directory if it is inside the repo, otherwise fall back to the root.
+workdir="$REPO_ROOT"
+case "$PWD" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*) workdir="$PWD" ;;
+esac
+
+extra_args=()
+if [ -n "${PHP_CONTAINER_NAME:-}" ]; then
+    extra_args+=(--name "$PHP_CONTAINER_NAME")
+fi
+if [ -n "${PHP_CLI_SERVER_WORKERS:-}" ]; then
+    extra_args+=(-e "PHP_CLI_SERVER_WORKERS=$PHP_CLI_SERVER_WORKERS")
+fi
+
+for runtime in podman docker; do
+    if command -v "$runtime" >/dev/null 2>&1; then
+        exec "$runtime" run --rm -i --network host "${extra_args[@]}" \
+            -v "$REPO_ROOT:$REPO_ROOT:z" -w "$workdir" \
+            "$PHP_IMAGE" php "$@"
+    fi
+done
+
+echo "scripts/php: no php on PATH and no podman/docker available." >&2
+echo "             Install PHP 8.1+ (with pdo_sqlite, openssl, simplexml, mbstring)" >&2
+echo "             or a container runtime, or set PHP_BIN." >&2
+exit 127
