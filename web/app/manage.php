@@ -2,20 +2,13 @@
 // web/manage.php — Optimized User and Room management dashboard
 
 session_start();
-$configFile = __DIR__ . "/../data/config.php";
-$isFallbackConfig = !file_exists($configFile);
-if ($isFallbackConfig) {
-    $configFile = __DIR__ . "/../data/config.sample.php";
-}
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
+require_once __DIR__ . "/../lib/bootstrap.php";
+[$config, $db] = LibreApp::boot();
+$isFallbackConfig = LibreApp::$usingFallbackConfig;
 
 // Prevent caching of the management dashboard
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::noCacheHeaders();
 
-$db = new LibreDb($config);
 $pdo = $db->getPdo();
 
 $error = "";
@@ -23,7 +16,7 @@ $message = "";
 $tab = $_GET['tab'] ?? 'users';
 
 function clearAllCaches() {
-    $files = glob(__DIR__ . '/../data/cache/*.{ics,xml,json}', GLOB_BRACE);
+    $files = glob(LibreApp::cacheDir() . '/*.{ics,xml,json}', GLOB_BRACE);
     foreach ($files as $file) {
         if (is_file($file)) unlink($file);
     }
@@ -51,7 +44,7 @@ $baseUrl = "$protocol://$host$dir/";
 // SECURITY CHECK: Verify that /data/cache/ is protected
 $securityWarning = "";
 if ($adminExists && isset($_SESSION['user_id'])) {
-    $dataDir = __DIR__ . '/../data/cache/';
+    $dataDir = LibreApp::cacheDir() . '/';
     $cacheFiles = glob($dataDir . '*.{ics,xml,json}', GLOB_BRACE);
 
     // If no cache exists, trigger RSS to generate one

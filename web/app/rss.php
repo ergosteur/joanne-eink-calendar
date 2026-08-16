@@ -1,19 +1,11 @@
 <?php
 // web/rss.php — Fetches multiple RSS feeds based on language
 
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . '/../lib/db.php';
-$db = new LibreDb($config);
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 $rssConfig = $config['rss'];
 
-header("Content-Type: application/json");
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::jsonHeaders();
 
 $lang = $_GET['lang'] ?? 'en';
 $urls = array_merge(
@@ -30,9 +22,8 @@ if (empty($urls)) {
 $urls = array_filter($urls, [LibreDb::class, 'isValidRemoteUrl']);
 
 function fetchCached($url, $ttl) {
-    $cacheSalt = "LibreJoanne_RSS_Salt_";
-    $cacheFile = __DIR__ . "/../data/cache/rss.cache." . md5($cacheSalt . $url) . ".xml";
-    
+    $cacheFile = LibreApp::cachePath('rss', 'LibreJoanne_RSS_Salt_', $url, 'xml');
+
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return file_get_contents($cacheFile);
     }

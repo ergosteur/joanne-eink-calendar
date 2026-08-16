@@ -1,16 +1,9 @@
 <?php
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . '/../lib/db.php';
-$db = new LibreDb($config);
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
 // Prevent caching of the main UI
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::noCacheHeaders();
 
 $roomId = $_GET['room'] ?? 'default';
 $isDatabaseRoom = false;

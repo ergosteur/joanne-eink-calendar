@@ -1,14 +1,10 @@
 <?php
 // web/app/geocoding.php — City search proxy for Open-Meteo
 
-header("Content-Type: application/json");
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
+LibreApp::jsonHeaders();
 
 $name = $_GET['name'] ?? '';
 if (strlen($name) < 2) {

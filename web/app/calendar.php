@@ -1,13 +1,8 @@
 <?php
 // calendar.php — Merges one or more iCal feeds and returns JSON
 
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
-$db = new LibreDb($config);
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
 $calConfig = $config['calendar'];
 
@@ -82,16 +77,11 @@ if ($roomId === 'personal' && !empty($_GET['userid'])) {
     }
 }
 
-header("Content-Type: application/json");
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::jsonHeaders();
 
 function getICS($url, $ttl) {
-    // Salt the cache filename to prevent guessing from known URLs
-    $cacheSalt = "LibreJoanne_Salt_";
-    $cacheFile = __DIR__ . "/../data/cache/calendar.cache." . md5($cacheSalt . $url) . ".ics";
-    
+    $cacheFile = LibreApp::cachePath('calendar', 'LibreJoanne_Salt_', $url, 'ics');
+
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return file_get_contents($cacheFile);
     }

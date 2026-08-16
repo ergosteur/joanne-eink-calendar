@@ -68,7 +68,7 @@ Time is the most bug-prone area here (see the long run of timezone fixes in git 
 
 ### Caching
 
-All caches live in `web/data/cache/` as `<kind>.cache.<md5(salt + key)>.<ext>`, with a per-kind salt so filenames can't be guessed from a known feed URL. TTLs: calendar 30s (`config['calendar']['cache_ttl']`), RSS 300s, weather 900s (hardcoded in `weather.php`). On a fetch failure the stale cache file is served rather than an error.
+All caches live in `web/data/cache/` as `<kind>.cache.<md5(salt + key)>.<ext>`, with a per-kind salt so filenames can't be guessed from a known feed URL. Build paths with `LibreApp::cachePath()`; the directory is created by `LibreApp::boot()` and is not in version control. TTLs: calendar 30s (`config['calendar']['cache_ttl']`), RSS 300s, weather 900s (hardcoded in `weather.php`). On a fetch failure the stale cache file is served rather than an error.
 
 `manage.php::clearAllCaches()` wipes all three types and is called after **every** mutation (room, user prefs, calendar add/edit/delete) — keep that invariant when adding new write paths, otherwise config edits appear not to take effect.
 

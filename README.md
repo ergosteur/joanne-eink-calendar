@@ -73,7 +73,6 @@ Point your e-ink device to the absolute URLs provided in the management dashboar
 ## Development
 
 ```bash
-mkdir -p web/data/cache          # created automatically on first request, but harmless to pre-create
 scripts/php -S 127.0.0.1:8000 -t web/app
 scripts/smoke.sh                 # lint every PHP file, then check every endpoint and view
 ```
