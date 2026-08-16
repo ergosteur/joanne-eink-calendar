@@ -28,7 +28,12 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
 ```text
 /
 ├── README.md          # Public documentation
-├── gemini.md          # Project vision and AI context
+├── CLAUDE.md          # Working conventions for contributors and AI agents
+├── docs/
+│   └── ARCHITECTURE.md # Design intent, subsystems, and roadmap
+├── scripts/
+│   ├── php            # Interpreter shim (native PHP, or pinned container)
+│   └── smoke.sh       # Lint + endpoint/view smoke test
 └── web/
     ├── app/           # Public Document Root (Only reachable files)
     │   ├── index.php  # Main UI logic
@@ -64,6 +69,23 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
 Point your e-ink device to the absolute URLs provided in the management dashboard. 
 - **Navigation**: Use the `<` and `>` buttons in the header to browse weeks.
 - **Reset**: Tap the **Time/Today** button on the far left to return to the current period.
+
+## Development
+
+```bash
+mkdir -p web/data/cache          # created automatically on first request, but harmless to pre-create
+scripts/php -S 127.0.0.1:8000 -t web/app
+scripts/smoke.sh                 # lint every PHP file, then check every endpoint and view
+```
+
+`scripts/php` uses a native `php` when one is on `PATH`, and otherwise runs a pinned
+`php:8.3-cli` container via podman or docker — so no PHP installation is required.
+Set `PHP_BIN` to point at a specific interpreter.
+
+`scripts/smoke.sh` is the project's verification loop in place of a unit test suite.
+It fails on PHP diagnostics rendered into a response body, which a status-code check
+would miss. It passes offline: endpoints that depend on a remote API assert a
+well-formed response, not live data.
 
 ## URL Parameter Overrides
 
