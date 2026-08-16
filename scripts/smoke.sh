@@ -209,17 +209,31 @@ check_html "widgets off"                      "/?show_rss=0&show_weather=0"
 check_html "unknown room falls back"          "/?room=does-not-exist"
 check_html "manage.php (login gate)"          "/manage.php"
 
+# The database-backed paths — rooms rows and tokenised users — are where the config
+# resolution chain does the most work, so exercise them whenever fixtures exist.
+# Populate with: scripts/php scripts/seed-dev-data.php
 DB="$REPO_ROOT/web/data/librejoanne.db"
 if command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
-    TOKEN=$(sqlite3 "$DB" "SELECT access_token FROM users WHERE access_token IS NOT NULL LIMIT 1" 2>/dev/null)
+    ROOM_KEY=$(sqlite3 "$DB" "SELECT room_key FROM rooms LIMIT 1" 2>/dev/null)
+    if [ -n "$ROOM_KEY" ]; then
+        check_html "database room view"       "/?room=$ROOM_KEY"
+        check_json "calendar.php, database room" "/calendar.php?room=$ROOM_KEY"
+    else
+        skip "database room — no rooms rows (see scripts/seed-dev-data.php)"
+    fi
+
+    TOKEN=$(sqlite3 "$DB" "SELECT access_token FROM users WHERE access_token IS NOT NULL AND is_admin = 0 LIMIT 1" 2>/dev/null)
     if [ -n "$TOKEN" ]; then
         check_html "personal token view"      "/?userid=$TOKEN"
         check_json "calendar.php via token"   "/calendar.php?userid=$TOKEN"
+        check_html "token + view override"    "/?userid=$TOKEN&view=grid"
+        # A token must win over ?room=, which is what forces the personal context.
+        check_html "token overrides ?room="   "/?room=default&userid=$TOKEN"
     else
-        skip "token views — no user rows (run manage.php setup)"
+        skip "token views — no non-admin user rows (see scripts/seed-dev-data.php)"
     fi
 else
-    skip "token views — no sqlite3 or no database yet"
+    skip "database paths — no sqlite3 or no database yet"
 fi
 
 # --------------------------------------------------------------------- summary
