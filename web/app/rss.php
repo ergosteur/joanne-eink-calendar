@@ -78,7 +78,26 @@ foreach ($urls as $url) {
     }
 }
 
-// Shuffle to mix feeds if multiple
-shuffle($allEvents);
+// Interleave the feeds, but hold the order steady for the length of a cache window.
+//
+// The XML is cached, yet the JSON was reshuffled on every request, so each poll
+// returned the same headlines in a new order. The client pages through that list, so
+// on an e-ink panel the ticker rearranged itself every refresh — visible churn, and a
+// full-page repaint each time on a battery-powered display.
+$window = (int)floor(time() / max(1, (int)$rssConfig['cache_ttl']));
+$allEvents = stableShuffle($allEvents, crc32($lang . '|' . $window));
+
+function stableShuffle(array $items, int $seed): array
+{
+    // Fisher-Yates against a seeded generator, rather than shuffle(), so the ordering
+    // does not depend on the global random state.
+    mt_srand($seed);
+    for ($i = count($items) - 1; $i > 0; $i--) {
+        $j = mt_rand(0, $i);
+        [$items[$i], $items[$j]] = [$items[$j], $items[$i]];
+    }
+    mt_srand(); // Restore unpredictable seeding for anything later in the request.
+    return $items;
+}
 
 echo json_encode($allEvents, JSON_PRETTY_PRINT);
