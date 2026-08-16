@@ -27,17 +27,9 @@ if (!LibreDb::isValidRemoteUrl($url)) {
     exit;
 }
 
-$opts = [
-    "http" => [
-        "method" => "GET",
-        "header" => "User-Agent: LibreJoanne/1.0\r\n",
-        "timeout" => 5
-    ]
-];
-$context = stream_context_create($opts);
-$response = @file_get_contents($url, false, $context);
+$response = LibreHttp::get($url, 5);
 
-if ($response === false) {
+if ($response === null) {
     http_response_code(503);
     echo json_encode(["error" => "Weather service unavailable"]);
     exit;

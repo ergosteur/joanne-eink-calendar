@@ -106,14 +106,18 @@ fi
 
 # ------------------------------------------------------------------ unit checks
 
-head_ "Parser"
-if unit_out=$("$PHP" "$REPO_ROOT/scripts/test-ical.php" 2>&1 </dev/null); then
-    printf '%s\n' "$unit_out" | grep -E '^\s+(PASS|FAIL)' | sed 's/^  /  /'
-    PASS=$((PASS + $(printf '%s\n' "$unit_out" | grep -c 'PASS')))
-else
-    printf '%s\n' "$unit_out" | tail -20
-    FAIL=$((FAIL+1))
-fi
+head_ "Unit checks"
+UNIT_FILES=()
+while IFS= read -r f; do UNIT_FILES+=("$f"); done < <(find "$REPO_ROOT/scripts" -name 'test-*.php' | sort)
+for f in "${UNIT_FILES[@]}"; do
+    if unit_out=$("$PHP" "$f" 2>&1 </dev/null); then
+        printf '%s\n' "$unit_out" | grep -E '^ +PASS'
+        PASS=$((PASS + $(printf '%s\n' "$unit_out" | grep -c 'PASS')))
+    else
+        printf '%s\n' "$unit_out" | grep -E '^ +(PASS|FAIL)|expected:|actual:' | head -30
+        fail "$(basename "$f")"
+    fi
+done
 
 # ---------------------------------------------------------------------- server
 

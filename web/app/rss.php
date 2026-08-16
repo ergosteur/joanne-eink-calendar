@@ -28,17 +28,9 @@ function fetchCached($url, $ttl) {
         return file_get_contents($cacheFile);
     }
 
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "User-Agent: LibreJoanne/1.0\r\n",
-            "timeout" => 10
-        ]
-    ];
-    $context = stream_context_create($opts);
-    $content = @file_get_contents($url, false, $context);
-    
-    if ($content !== false) {
+    $content = LibreHttp::get($url, 10);
+
+    if ($content !== null && $content !== '') {
         file_put_contents($cacheFile, $content);
         return $content;
     }

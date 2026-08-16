@@ -30,17 +30,8 @@ function getICS($url, $ttl) {
         return file_get_contents($cacheFile);
     }
 
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "header" => "User-Agent: LibreJoanne/1.0\r\n",
-            "timeout" => 10, // 10 second timeout for remote fetches
-        ]
-    ];
-    $context = stream_context_create($opts);
-    
-    // Resolve relative paths if it's a local file
-    $fetchUrl = $url;
+    // Anything that is not a valid public URL is treated as a local template, which is
+    // executed. That path must stay pinned to the single bundled generator.
     $isLocal = !isValidWebUrl($url);
     if ($isLocal) {
         // Security: Only allow demo.ics.php as a local source
@@ -50,7 +41,7 @@ function getICS($url, $ttl) {
 
         $baseDir = realpath(__DIR__);
         $fetchUrl = realpath(__DIR__ . "/" . basename($url));
-        
+
         // Ensure the path is within the allowed directory
         if (!$fetchUrl || !str_starts_with($fetchUrl, $baseDir)) {
             return false;
@@ -61,10 +52,10 @@ function getICS($url, $ttl) {
         include $fetchUrl;
         $ics = ob_get_clean();
     } else {
-        $ics = @file_get_contents($fetchUrl, false, $context);
+        $ics = LibreHttp::get($url, 10);
     }
-    
-    if ($ics === false || empty($ics)) {
+
+    if ($ics === false || $ics === null || empty($ics)) {
         return file_exists($cacheFile) ? file_get_contents($cacheFile) : false;
     }
 

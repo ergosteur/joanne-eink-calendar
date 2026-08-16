@@ -1,6 +1,8 @@
 <?php
 // web/db.php — Database helper and security functions
 
+require_once __DIR__ . '/http.php';
+
 class LibreDb {
     private $pdo;
     private $key;
@@ -140,22 +142,12 @@ class LibreDb {
     public function getPdo() { return $this->pdo; }
 
     /**
-     * Security: Validates remote URLs and protects against SSRF
+     * Security: Validates remote URLs and protects against SSRF.
+     *
+     * Kept as the project-wide entry point; the checks live in LibreHttp, which also
+     * owns fetching so that redirect destinations are validated too.
      */
     public static function isValidRemoteUrl($url) {
-        $parsed = parse_url($url);
-        if (!isset($parsed['scheme'], $parsed['host']) || !in_array($parsed['scheme'], ['http', 'https'])) {
-            return false;
-        }
-
-        $host = $parsed['host'];
-        $ip = gethostbyname($host);
-
-        // Reject if it doesn't resolve or resolves to a private/reserved IP
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-            return false;
-        }
-
-        return true;
+        return LibreHttp::isPublicUrl((string)$url);
     }
 }
