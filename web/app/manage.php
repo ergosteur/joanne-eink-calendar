@@ -1,21 +1,47 @@
 <?php
 // web/manage.php — Optimized User and Room management dashboard
 
+// SameSite alone blocks most cross-site form posts; the token below covers the rest.
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Lax',
+    'secure'   => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+]);
 session_start();
-$configFile = __DIR__ . "/../data/config.php";
-$isFallbackConfig = !file_exists($configFile);
-if ($isFallbackConfig) {
-    $configFile = __DIR__ . "/../data/config.sample.php";
+require_once __DIR__ . "/../lib/bootstrap.php";
+[$config, $db] = LibreApp::boot();
+$isFallbackConfig = LibreApp::$usingFallbackConfig;
+
+function csrfToken(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
 }
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
+
+function csrfField(): string
+{
+    return '<input type="hidden" name="csrf_token" value="' . e(csrfToken()) . '">';
+}
+
+function csrfValid(): bool
+{
+    return !empty($_SESSION['csrf_token'])
+        && isset($_POST['csrf_token'])
+        && is_string($_POST['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
+}
+
+/** Escape for HTML output. */
+function e($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
 
 // Prevent caching of the management dashboard
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::noCacheHeaders();
 
-$db = new LibreDb($config);
 $pdo = $db->getPdo();
 
 $error = "";
@@ -23,7 +49,7 @@ $message = "";
 $tab = $_GET['tab'] ?? 'users';
 
 function clearAllCaches() {
-    $files = glob(__DIR__ . '/../data/cache/*.{ics,xml,json}', GLOB_BRACE);
+    $files = glob(LibreApp::cacheDir() . '/*.{ics,xml,json}', GLOB_BRACE);
     foreach ($files as $file) {
         if (is_file($file)) unlink($file);
     }
@@ -51,7 +77,7 @@ $baseUrl = "$protocol://$host$dir/";
 // SECURITY CHECK: Verify that /data/cache/ is protected
 $securityWarning = "";
 if ($adminExists && isset($_SESSION['user_id'])) {
-    $dataDir = __DIR__ . '/../data/cache/';
+    $dataDir = LibreApp::cacheDir() . '/';
     $cacheFiles = glob($dataDir . '*.{ics,xml,json}', GLOB_BRACE);
 
     // If no cache exists, trigger RSS to generate one
@@ -78,7 +104,14 @@ if ($adminExists && isset($_SESSION['user_id'])) {
     }
 }
 
-if (isset($_GET['logout'])) {
+// Every state change arrives by POST and must carry the session's token. Emptying the
+// request rather than branching means a forged post cannot reach any handler below.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrfValid()) {
+    $_POST = [];
+    $error = "Your session expired or the request could not be verified. Please try again.";
+}
+
+if (isset($_POST['logout'])) {
     session_destroy();
     header("Location: manage.php");
     exit;
@@ -92,6 +125,7 @@ if (!$adminExists) {
             $hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, access_token, is_admin) VALUES (?, ?, ?, 1)");
             $stmt->execute([$_POST['username'], $hash, $token]);
+            session_regenerate_id(true); // Do not carry a pre-login session id forward.
             $_SESSION['user_id'] = $pdo->lastInsertId();
             $_SESSION['is_admin'] = true;
             $message = "Setup complete! Admin account created.";
@@ -109,6 +143,7 @@ else if (!isset($_SESSION['user_id'])) {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($_POST['password'], $user['password_hash'])) {
+            session_regenerate_id(true); // Do not carry a pre-login session id forward.
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['is_admin'] = (bool)$user['is_admin'];
         } else {
@@ -132,7 +167,8 @@ if (!$adminExists) {
                 </div>
             <?php endif; ?>
             <p style="color:#666; font-size:0.9rem;">Enter the setup password from config.php to create your admin account.</p>
-            <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
+            <?php if($error) echo "<p style='color:red'>" . e($error) . "</p>"; ?>
+            <?= csrfField() ?>
             <input type="password" name="setup_password" placeholder="Setup Password" required>
             <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
             <input type="text" name="username" placeholder="New Admin Username" required>
@@ -158,7 +194,8 @@ if (!isset($_SESSION['user_id'])) {
                     Using <code>config.sample.php</code> defaults.
                 </div>
             <?php endif; ?>
-            <?php if($error) echo "<p style='color:red'>$error</p>"; ?>
+            <?php if($error) echo "<p style='color:red'>" . e($error) . "</p>"; ?>
+            <?= csrfField() ?>
             <input type="text" name="username" placeholder="Username" required autofocus>
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit" name="login" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Login</button>
@@ -246,15 +283,16 @@ if (isset($_POST['save_cal'])) {
     }
 }
 
-if (isset($_GET['delete_cal'])) {
+if (isset($_POST['delete_cal'])) {
     $stmt = $pdo->prepare("SELECT user_id FROM calendars WHERE id = ?");
-    $stmt->execute([$_GET['delete_cal']]);
+    $stmt->execute([$_POST['delete_cal']]);
     $cal = $stmt->fetch();
 
     if ($cal && ($_SESSION['is_admin'] || $_SESSION['user_id'] == $cal['user_id'])) {
         $stmt = $pdo->prepare("DELETE FROM calendars WHERE id = ?");
-        $stmt->execute([$_GET['delete_cal']]);
+        $stmt->execute([$_POST['delete_cal']]);
         clearAllCaches();
+        $message = "Calendar deleted.";
     } else {
         $error = "Unauthorized action.";
     }
@@ -265,9 +303,13 @@ if ($_SESSION['is_admin']) {
     if (isset($_POST['save_room'])) {
         $reservedKeys = ['default', 'personal', 'personal-grid'];
         $roomKey = strtolower(trim($_POST['room_key']));
-        
+
         if (in_array($roomKey, $reservedKeys)) {
             $error = "The room key '$roomKey' is reserved and cannot be used.";
+        } elseif (!preg_match('/^[a-z0-9][a-z0-9_-]{0,63}$/', $roomKey)) {
+            // The key is a URL slug and is echoed back into the edit form, so keep it
+            // to characters that are safe in both places.
+            $error = "Room keys may contain only lowercase letters, numbers, hyphens and underscores.";
         } else {
             $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
             if (!empty($_POST['room_id'])) {
@@ -296,10 +338,11 @@ if ($_SESSION['is_admin']) {
         }
     }
 
-    if (isset($_GET['delete_room'])) {
+    if (isset($_POST['delete_room'])) {
         $stmt = $pdo->prepare("DELETE FROM rooms WHERE id = ?");
-        $stmt->execute([$_GET['delete_room']]);
+        $stmt->execute([$_POST['delete_room']]);
         clearAllCaches();
+        $message = "Room deleted.";
     }
 
     if (isset($_POST['clear_cache'])) {
@@ -352,9 +395,15 @@ $allTimezones = DateTimeZone::listIdentifiers();
         .url-box { width: 100%; box-sizing: border-box; background: #f8f8f8; border: 1px dashed var(--border); font-family: monospace; font-size: 0.85rem; padding: 12px; border-radius: 8px; color: #000; cursor: pointer; margin: 8px 0; }
         
         .user-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-        .actions { display: flex; gap: 12px; font-size: 0.85rem; font-weight: 600; }
+        .actions { display: flex; gap: 12px; font-size: 0.85rem; font-weight: 600; align-items: center; }
         .actions a { text-decoration: none; color: #0066cc; }
         .actions a.delete { color: #cc0000; }
+        /* Destructive actions are forms, not links, so they cannot be triggered by a
+           cross-site GET. Keep them looking like the links beside them. */
+        .linklike { background: none; border: 0; padding: 0; margin: 0; font: inherit;
+                    cursor: pointer; color: #0066cc; }
+        .linklike.delete { color: #cc0000; }
+        .actions form { display: inline; margin: 0; }
 
         .search-area { background: #f9f9f9; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin: 1rem 0; }
         .results-box { position: absolute; background: #fff; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; padding: 8px; z-index: 100; margin-top: 4px; width: 300px; display: none; }
@@ -407,9 +456,13 @@ $allTimezones = DateTimeZone::listIdentifiers();
         <h1>LibreJoanne</h1>
         <div style="display:flex; gap:12px; align-items:center;">
             <form method="POST" onsubmit="return confirm('Clear all calendar, RSS, and weather caches?')">
+                <?= csrfField() ?>
                 <button type="submit" name="clear_cache" class="btn btn-muted" style="padding: 6px 12px; font-size: 0.8rem;">Clear Caches</button>
             </form>
-            <a href="?logout=1" style="font-size: 0.9rem; font-weight: 600; color: var(--muted); text-decoration: none;">Logout</a>
+            <form method="POST" style="margin:0;">
+                <?= csrfField() ?>
+                <button type="submit" name="logout" class="linklike" style="font-size: 0.9rem; font-weight: 600; color: var(--muted);">Logout</button>
+            </form>
         </div>
     </div>
 
@@ -427,15 +480,16 @@ $allTimezones = DateTimeZone::listIdentifiers();
         </div>
     <?php endif; ?>
 
-    <?php if($securityWarning) echo "<p style='color:white; background:#cc0000; padding:15px; border-radius:8px; font-weight:bold; border:2px solid #ff0000;'>$securityWarning</p>"; ?>
-    <?php if($message) echo "<p style='color:green; background:#eaffea; padding:12px; border-radius:8px; font-weight:600;'>$message</p>"; ?>
-    <?php if($error) echo "<p style='color:red; background:#ffeaea; padding:12px; border-radius:8px; font-weight:600;'>$error</p>"; ?>
+    <?php if($securityWarning) echo "<p style='color:white; background:#cc0000; padding:15px; border-radius:8px; font-weight:bold; border:2px solid #ff0000;'>" . e($securityWarning) . "</p>"; ?>
+    <?php if($message) echo "<p style='color:green; background:#eaffea; padding:12px; border-radius:8px; font-weight:600;'>" . e($message) . "</p>"; ?>
+    <?php if($error) echo "<p style='color:red; background:#ffeaea; padding:12px; border-radius:8px; font-weight:600;'>" . e($error) . "</p>"; ?>
 
     <?php if ($tab === 'users'): ?>
         <?php if ($_SESSION['is_admin']): ?>
         <div class="card">
             <h3>Create New User</h3>
             <form method="POST" class="form-grid" style="align-items: center;">
+                <?= csrfField() ?>
                 <input type="text" name="username" placeholder="Username (e.g. Matt)" required>
                 <input type="password" name="password" placeholder="Password" required>
                 <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:0.9rem;">
@@ -453,19 +507,20 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 <div class="user-meta">
                     <div>
                         <h2 style="margin:0;"><?= htmlspecialchars($user['username']) ?> <?php if($user['is_admin']) echo '<span class="badge">Admin</span>'; ?></h2>
-                        <small style="color:var(--muted)">Access Token: <code><?= $user['access_token'] ?></code></small>
+                        <small style="color:var(--muted)">Access Token: <code><?= e($user['access_token']) ?></code></small>
                     </div>
                 </div>
                 
                 <div class="form-group">
                     <label>Personal URL (Copy to Device)</label>
-                    <input type="text" class="url-box" value="<?= $baseUrl ?>?userid=<?= $user['access_token'] ?>" readonly onclick="this.select()">
+                    <input type="text" class="url-box" value="<?= e($baseUrl) ?>?userid=<?= e($user['access_token']) ?>" readonly onclick="this.select()">
                 </div>
 
                 <details style="margin-top:1rem; margin-bottom:1rem; background:#f8f8f8; padding:10px; border-radius:8px; border:1px solid #eee;">
                     <summary style="cursor:pointer; font-weight:600; font-size:0.85rem; color:var(--muted); text-transform:uppercase;">Security Settings</summary>
                     <form method="POST" style="margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>">
                         <input type="password" name="new_password" placeholder="Set New Password" style="flex:1; min-width:200px;">
                         
                         <?php if($_SESSION['is_admin'] && $_SESSION['user_id'] != $user['id']): ?>
@@ -479,7 +534,8 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 </details>
 
                 <form method="POST" style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #eee;">
-                    <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>">
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Display Label</label>
@@ -509,24 +565,24 @@ $allTimezones = DateTimeZone::listIdentifiers();
                     <div style="position:relative;">
                         <label style="font-size:0.8rem; font-weight:700; color:var(--muted);">Weather Location</label>
                         <div style="display:flex; gap:10px; margin-bottom:10px;">
-                            <input type="text" id="user_<?= $user['id'] ?>_city_search" placeholder="Search City..." style="flex:1;">
-                            <button type="button" class="btn btn-muted" onclick="searchCity('user_<?= $user['id'] ?>_')">Find</button>
+                            <input type="text" id="user_<?= (int)$user['id'] ?>_city_search" placeholder="Search City..." style="flex:1;">
+                            <button type="button" class="btn btn-muted" onclick="searchCity('user_<?= (int)$user['id'] ?>_')">Find</button>
                         </div>
-                        <div id="user_<?= $user['id'] ?>_city_results" class="results-box"></div>
+                        <div id="user_<?= (int)$user['id'] ?>_city_results" class="results-box"></div>
                     </div>
 
                     <div class="form-grid">
                         <div class="form-group">
                             <label>City Name</label>
-                            <input type="text" name="weather_city" id="user_<?= $user['id'] ?>_city" value="<?= htmlspecialchars((string)$user['weather_city']) ?>">
+                            <input type="text" name="weather_city" id="user_<?= (int)$user['id'] ?>_city" value="<?= htmlspecialchars((string)$user['weather_city']) ?>">
                         </div>
                         <div class="form-group">
                             <label>Lat</label>
-                            <input type="text" name="weather_lat" id="user_<?= $user['id'] ?>_lat" value="<?= htmlspecialchars((string)$user['weather_lat']) ?>">
+                            <input type="text" name="weather_lat" id="user_<?= (int)$user['id'] ?>_lat" value="<?= htmlspecialchars((string)$user['weather_lat']) ?>">
                         </div>
                         <div class="form-group">
                             <label>Lon</label>
-                            <input type="text" name="weather_lon" id="user_<?= $user['id'] ?>_lon" value="<?= htmlspecialchars((string)$user['weather_lon']) ?>">
+                            <input type="text" name="weather_lon" id="user_<?= (int)$user['id'] ?>_lon" value="<?= htmlspecialchars((string)$user['weather_lon']) ?>">
                         </div>
                     </div>
 
@@ -557,7 +613,8 @@ $allTimezones = DateTimeZone::listIdentifiers();
                             <li class="cal-item">
                                 <?php if ($isEditingCal): ?>
                                     <form method="POST" style="display:flex; gap:10px; width:100%;">
-                                        <input type="hidden" name="cal_id" value="<?= $cal['id'] ?>">
+                                        <?= csrfField() ?>
+                                        <input type="hidden" name="cal_id" value="<?= (int)$cal['id'] ?>">
                                         <input type="text" name="url" value="<?= htmlspecialchars($decryptedUrl) ?>" style="flex:1;" required>
                                         <button type="submit" name="save_cal" class="btn">Update</button>
                                         <a href="?tab=users" class="btn btn-muted" style="text-decoration:none;">Cancel</a>
@@ -567,15 +624,20 @@ $allTimezones = DateTimeZone::listIdentifiers();
                                         <input type="text" class="url-box" value="<?= htmlspecialchars($decryptedUrl) ?>" readonly onclick="this.select()" style="margin:0; padding:4px; font-size:0.75rem;">
                                     </div>
                                     <div class="actions">
-                                        <a href="?tab=users&edit_cal=<?= $cal['id'] ?>">Edit</a>
-                                        <a href="?tab=users&delete_cal=<?= $cal['id'] ?>" class="delete" onclick="return confirm('Delete?')">Delete</a>
+                                        <a href="?tab=users&edit_cal=<?= (int)$cal['id'] ?>">Edit</a>
+                                        <form method="POST" onsubmit="return confirm('Delete this feed?')">
+                                            <?= csrfField() ?>
+                                            <input type="hidden" name="delete_cal" value="<?= (int)$cal['id'] ?>">
+                                            <button type="submit" class="linklike delete">Delete</button>
+                                        </form>
                                     </div>
                                 <?php endif; ?>
                             </li>
                         <?php endforeach; ?>
                     </ul>
                     <form method="POST" style="display:flex; gap:10px; margin-top:10px;">
-                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>">
                         <input type="text" name="url" placeholder="New iCal URL (https://...)" style="flex:1;" required>
                         <button type="submit" name="save_cal" class="btn btn-muted">Add Feed</button>
                     </form>
@@ -587,12 +649,13 @@ $allTimezones = DateTimeZone::listIdentifiers();
         <div class="card">
             <h3><?= $editRoom ? "Edit Room: " . htmlspecialchars($editRoom['name']) : "Add New Room" ?></h3>
             <form method="POST">
-                <?php if($editRoom): ?><input type="hidden" name="room_id" value="<?= $editRoom['id'] ?>"><?php endif; ?>
+                <?= csrfField() ?>
+                <?php if($editRoom): ?><input type="hidden" name="room_id" value="<?= (int)$editRoom['id'] ?>"><?php endif; ?>
                 
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Room Key (URL Slug)</label>
-                        <input type="text" name="room_key" placeholder="boardroom" value="<?= $editRoom['room_key'] ?? '' ?>" required>
+                        <input type="text" name="room_key" placeholder="boardroom" value="<?= e($editRoom['room_key'] ?? '') ?>" required>
                     </div>
                     <div class="form-group">
                         <label>Room Name (Header)</label>
@@ -677,13 +740,17 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
                     <h3 style="margin:0; border:0; padding:0;"><?= htmlspecialchars($room['name']) ?> <span class="badge"><?= htmlspecialchars($room['room_key']) ?></span></h3>
                     <div class="actions">
-                        <a href="?tab=rooms&edit_room=<?= $room['id'] ?>">Edit</a>
-                        <a href="?tab=rooms&delete_room=<?= $room['id'] ?>" class="delete" onclick="return confirm('Delete room?')">Delete</a>
+                        <a href="?tab=rooms&edit_room=<?= (int)$room['id'] ?>">Edit</a>
+                        <form method="POST" onsubmit="return confirm('Delete room?')">
+                            <?= csrfField() ?>
+                            <input type="hidden" name="delete_room" value="<?= (int)$room['id'] ?>">
+                            <button type="submit" class="linklike delete">Delete</button>
+                        </form>
                     </div>
                 </div>
                 <div class="form-group">
                     <label><small>Room Display URL:</small></label>
-                    <input type="text" class="url-box" value="<?= $baseUrl ?>?room=<?= urlencode($room['room_key']) ?>" readonly onclick="this.select()">
+                    <input type="text" class="url-box" value="<?= e($baseUrl) ?>?room=<?= e(urlencode($room['room_key'])) ?>" readonly onclick="this.select()">
                 </div>
             </div>
         <?php endforeach; ?>

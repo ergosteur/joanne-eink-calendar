@@ -1,84 +1,37 @@
 <?php
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . '/../lib/db.php';
-$db = new LibreDb($config);
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
 // Prevent caching of the main UI
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::noCacheHeaders();
 
-$roomId = $_GET['room'] ?? 'default';
-$isDatabaseRoom = false;
+$ctx = LibreContext::resolve($config, $db, $_GET);
 
-// If a userid is provided, assume it's a personal view regardless of the room parameter
-if (!empty($_GET['userid'])) {
-    $roomId = 'personal';
-}
+$roomId             = $ctx->roomId;
+$roomConfig         = $ctx->roomConfig;
+$isDatabaseRoom     = $ctx->isDatabaseRoom;
+$isPersonalizedUser = $ctx->isPersonalizedUser;
+$lang               = $ctx->lang;
+$view               = $ctx->view;
+$displayName        = $ctx->displayName;
+$timeFormat         = $ctx->timeFormat;
+$activeTimezone     = $ctx->timezone;
+$showRss            = $ctx->showRss;
+$showWeather        = $ctx->showWeather;
+$showClock          = $ctx->showClock;
+$powerSave          = $ctx->powerSave;
+$weatherLat         = $ctx->weatherLat;
+$weatherLon         = $ctx->weatherLon;
+$weatherCity        = $ctx->weatherCity;
 
-// Try DB first, then config.php
-$roomConfig = $db->getRoomConfig($roomId);
-if ($roomConfig) {
-    $isDatabaseRoom = true;
-} else {
-    $roomConfig = $config['rooms'][$roomId] ?? $config['rooms']['default'];
-}
-
-$lang = $_GET['lang'] ?? $config['ui']['lang'];
-$view = $roomConfig['view'] ?? 'room';
-$displayName = $roomConfig['display_name'] ?? "";
-$timeFormat = $roomConfig['time_format'] ?? "auto";
-$activeTimezone = ($roomConfig['timezone'] ?? '') ?: $config['calendar']['timezone'];
-$isPersonalizedUser = false;
-
-// If it's a personal view with a valid token, let the user's preference override the view
-if ($roomId === 'personal' && !empty($_GET['userid'])) {
-    $stmt = $db->getPdo()->prepare("SELECT view, time_format, timezone, weather_lat, weather_lon, weather_city, display_name, past_horizon, future_horizon FROM users WHERE access_token = ?");
-    $stmt->execute([$_GET['userid']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($user) {
-        $isPersonalizedUser = true;
-        $view = $user['view'];
-        $displayName = $user['display_name'];
-        $timeFormat = $user['time_format'] ?: "auto";
-        if (!empty($user['timezone'])) $activeTimezone = $user['timezone'];
-        if (!empty($user['weather_lat'])) {
-            $weatherLat = $user['weather_lat'];
-            $weatherLon = $user['weather_lon'];
-            $weatherCity = $user['weather_city'];
-        }
-        if (!empty($user['past_horizon'])) $roomConfig['past_horizon'] = $user['past_horizon'];
-        if (!empty($user['future_horizon'])) $roomConfig['future_horizon'] = $user['future_horizon'];
-    }
-}
-
-// URL Override for View
-if (isset($_GET['view'])) {
-    $v = $_GET['view'];
-    if ($v === '7daygrid') $v = 'grid';
-    if (in_array($v, ['room', 'dashboard', 'grid'])) {
-        $view = $v;
-    }
-}
-
-$showRss = isset($_GET['show_rss']) ? (bool)$_GET['show_rss'] : ($roomConfig['show_rss'] ?? true);
-$showWeather = isset($_GET['show_weather']) ? (bool)$_GET['show_weather'] : ($roomConfig['show_weather'] ?? true);
-
+// The grid packs a full week plus a detailed today block; there is no room left
+// for the footer widgets.
 if ($view === 'grid') {
     $showRss = false;
     $showWeatherWidget = false;
 } else {
     $showWeatherWidget = $showWeather;
 }
-
-// Get Weather Coordinates
-$weatherLat = $weatherLat ?? $roomConfig['weather_lat'] ?? 43.65;
-$weatherLon = $weatherLon ?? $roomConfig['weather_lon'] ?? -79.38;
-$weatherCity = $weatherCity ?? $roomConfig['weather_city'] ?? 'Toronto';
 
 // Capture Device Status (More robust detection for different gateway versions)
 $devIp = $_SERVER['HTTP_X_VISIONECT_DEVICE_IP'] ?? $_SERVER['HTTP_X_DEVICE_IP'] ?? $_GET['dev_ip'] ?? null;
@@ -93,18 +46,9 @@ if (function_exists('getallheaders')) {
     $devSig = $devSig ?? $headers['X-Visionect-Signal'] ?? $headers['X-Signal'] ?? null;
 }
 
-// Detect if we are using the demo calendar
-$usingDemoCalendar = false;
-$checkUrls = is_array($roomConfig['calendar_url'] ?? []) 
-    ? $roomConfig['calendar_url'] 
-    : [$roomConfig['calendar_url'] ?? ''];
-
-foreach ($checkUrls as $u) {
-    if (str_contains($u, 'demo.ics.php')) {
-        $usingDemoCalendar = true;
-        break;
-    }
-}
+// Demo mode keys off the feeds actually in use, so a user whose own calendars have
+// replaced the personal template is not reported as a demo device.
+$usingDemoCalendar = $ctx->usingDemoCalendar;
 
 // Dummy values for demo rooms if no real data provided
 if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
@@ -712,14 +656,57 @@ const displayName = "<?= htmlspecialchars((string)$displayName) ?>";
 const timeFormat = "<?= htmlspecialchars((string)$timeFormat) ?>";
 const showRss = <?= $showRss ? 'true' : 'false' ?>;
 const showWeather = <?= $showWeather ? 'true' : 'false' ?>;
+const showClock = <?= $showClock ? 'true' : 'false' ?>;
+const powerSave = <?= $powerSave ? 'true' : 'false' ?>;
 const showWeatherWidget = <?= $showWeatherWidget ? 'true' : 'false' ?>;
 const weatherLat = <?= (float)$weatherLat ?>;
 const weatherLon = <?= (float)$weatherLon ?>;
 const weatherCity = "<?= htmlspecialchars((string)$weatherCity) ?>";
-const pastHorizon = <?= (int)($roomConfig['past_horizon'] ?? 30) ?>;
-const futureHorizon = <?= (int)($roomConfig['future_horizon'] ?? 30) ?>;
+const pastHorizon = <?= (int)$ctx->pastHorizon ?>;
+const futureHorizon = <?= (int)$ctx->futureHorizon ?>;
 const serverTimezone = "<?= $activeTimezone ?>";
 const isPersonalizedUser = <?= $isPersonalizedUser ? 'true' : 'false' ?>;
+
+/* ---------- REPAINT BUDGET ----------
+ * The panel is battery powered and repaints by diffing the rendered page, so the
+ * cost that matters is how often pixels change, not how much work the script does.
+ * Two rules follow:
+ *   1. Never write to the DOM unless the value actually differs — setText/setHtml
+ *      below return early, so an unchanged clock or headline costs nothing.
+ *   2. Keep the intervals as long as the content allows, and lengthen them further
+ *      in power-save mode.
+ */
+const REFRESH = powerSave
+  ? { clock: 300000, telemetry: 300000, news: 1800000, newsRotate: 60000, weather: 3600000 }
+  : { clock:  60000, telemetry:  60000, news:  600000, newsRotate: 10000, weather: 1800000 };
+
+function setText(el, value) {
+  if (!el || el.textContent === value) return false;
+  el.textContent = value;
+  return true;
+}
+
+function setHtml(el, value) {
+  if (!el || el.innerHTML === value) return false;
+  el.innerHTML = value;
+  return true;
+}
+
+function setStyle(el, prop, value) {
+  if (!el || el.style[prop] === value) return false;
+  el.style[prop] = value;
+  return true;
+}
+
+/**
+ * Run on wall-clock boundaries rather than every N ms from load, so the repaint
+ * lands just after the minute rolls over instead of drifting into the middle of it.
+ */
+function scheduleAligned(fn, periodMs) {
+  const next = () => setTimeout(tick, periodMs - (Date.now() % periodMs) + 50);
+  const tick = () => { fn(); next(); };
+  next();
+}
 
         /* ---------- LANGUAGE ---------- */
 let lang = "<?= htmlspecialchars((string)$lang) ?>";
@@ -733,7 +720,7 @@ let statusLabel = "";
 
 function updateLabels() {
   const t = i18n[lang];
-  const rawRoomName = "<?= htmlspecialchars((string)$roomConfig['name']) ?>";
+  const rawRoomName = "<?= htmlspecialchars((string)($roomConfig['name'] ?? '')) ?>";
   
   if (isPersonalizedUser) {
     headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
@@ -879,10 +866,10 @@ function updateTelemetry() {
       const batt = parseInt(okular.BatteryLevel);
       const battItem = document.getElementById("status-battery");
       if (battItem) {
-          battItem.style.display = "flex";
-          document.getElementById("battery-fill").style.display = "block";
-          document.getElementById("battery-fill").style.width = batt + "%";
-          document.getElementById("battery-text").textContent = batt + "%";
+          setStyle(battItem, "display", "flex");
+          setStyle(document.getElementById("battery-fill"), "display", "block");
+          setStyle(document.getElementById("battery-fill"), "width", batt + "%");
+          setText(document.getElementById("battery-text"), batt + "%");
       }
     }
 
@@ -892,7 +879,9 @@ function updateTelemetry() {
       const sigItem = document.getElementById("status-signal");
       if (sigItem) {
           const bars = sigItem.querySelectorAll(".bar");
-          sigItem.style.display = "flex";
+          setStyle(sigItem, "display", "flex");
+          // classList.toggle with an explicit force flag is already a no-op when the
+          // class is in the requested state, so this does not dirty the DOM.
           bars[1].classList.toggle("fill", rssi > 20);
           bars[2].classList.toggle("fill", rssi > 40);
           bars[3].classList.toggle("fill", rssi > 70);
@@ -902,22 +891,34 @@ function updateTelemetry() {
 }
 
 updateTelemetry();
-setInterval(updateTelemetry, 60000);
+setInterval(updateTelemetry, REFRESH.telemetry);
 
 /* ---------- CLOCK ---------- */
 function updateClock() {
   const t = i18n[lang];
-  const now = new Date();
+  // In power-save mode the clock only repaints every few minutes, so round the value
+  // down to that step: a coarse clock is honest, a stale precise one is not.
+  const now = powerSave
+    ? new Date(Math.floor(Date.now() / REFRESH.clock) * REFRESH.clock)
+    : new Date();
   const locale = lang === "en" ? "en-CA" : "fr-CA";
   
   // 1. Handle the Time / Reset Button
   const timeBtn = document.getElementById("time-btn");
   if (timeBtn) {
       if (dateOffset !== 0) {
-        timeBtn.textContent = t.ReturnToToday;
+        // While browsing other weeks the button is the way back to today, so it stays
+        // even when the clock is hidden.
+        setStyle(timeBtn, "display", "flex");
+        setHtml(timeBtn, t.ReturnToToday);
+      } else if (!showClock) {
+        // Hiding the clock removes a guaranteed repaint every single minute, which on
+        // a battery panel is the largest avoidable cost on the page.
+        setStyle(timeBtn, "display", "none");
       } else {
+        setStyle(timeBtn, "display", "flex");
         let timeStr = formatTime(now);
-        
+
         // Always append a small timezone/offset label
         const tzFormatter = new Intl.DateTimeFormat(locale, {
             timeZone: serverTimezone,
@@ -929,7 +930,7 @@ function updateClock() {
         if (tzPart) {
             timeStr += `<span style="font-size: 14px; margin-left: 8px; font-weight: 500;">${tzPart.value}</span>`;
         }
-        timeBtn.innerHTML = timeStr;
+        setHtml(timeBtn, timeStr);
       }
   }
 
@@ -947,11 +948,12 @@ function updateClock() {
     timeZone: serverTimezone
   });
 
-  const dateEl = document.getElementById("date-display");
-  if (dateEl) dateEl.textContent = dateStr;
+  setText(document.getElementById("date-display"), dateStr);
 }
 
-setInterval(updateClock, 60000);
+// Aligned to the minute (or the power-save step) so the repaint happens right
+// after the boundary rather than drifting into the middle of it.
+scheduleAligned(updateClock, REFRESH.clock);
 updateClock();
 
 /**
@@ -1323,7 +1325,7 @@ function fetchWeather() {
 }
 
 fetchWeather();
-setInterval(fetchWeather, 1800000); // 30 mins
+setInterval(fetchWeather, REFRESH.weather);
 
 /* ---------- FETCH NEWS ---------- */
 let newsItems = [];
@@ -1342,16 +1344,16 @@ function rotateNews() {
   if (headlineEl) {
       if (headline.length <= SEGMENT_SIZE) {
         // Fits in one go
-        headlineEl.textContent = headline;
+        setText(headlineEl, headline);
         newsIndex = (newsIndex + 1) % newsItems.length;
         newsCharOffset = 0;
       } else {
         // Needs paging
         const segment = headline.substring(newsCharOffset, newsCharOffset + SEGMENT_SIZE);
         const hasMore = (newsCharOffset + SEGMENT_SIZE) < headline.length;
-        
-        headlineEl.textContent = (newsCharOffset > 0 ? "... " : "") + segment + (hasMore ? " ..." : "");
-        
+
+        setText(headlineEl, (newsCharOffset > 0 ? "... " : "") + segment + (hasMore ? " ..." : ""));
+
         if (hasMore) {
           newsCharOffset += (SEGMENT_SIZE - 10); // Overlap 10 chars for readability
         } else {
@@ -1360,7 +1362,7 @@ function rotateNews() {
         }
       }
   }
-  if (sourceEl) sourceEl.textContent = item.source || "";
+  setText(sourceEl, item.source || "");
 }
 
 function fetchNews() {
@@ -1382,8 +1384,10 @@ function fetchNews() {
 
 if (showRss) {
   fetchNews();
-  setInterval(rotateNews, 10000);
-  setInterval(fetchNews, 600000); // Refresh every 10 mins
+  // The ticker is the most frequent repaint on the page; power-save slows it
+  // rather than removing it, so the panel still shows fresh headlines.
+  setInterval(rotateNews, REFRESH.newsRotate);
+  setInterval(fetchNews, REFRESH.news);
 }
 updateUI();
     </script>

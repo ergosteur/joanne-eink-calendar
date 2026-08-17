@@ -1,26 +1,17 @@
 <?php
 // web/app/weather.php — Custom weather backend using Open-Meteo
 
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
-$db = new LibreDb($config);
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
-header("Content-Type: application/json");
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+LibreApp::jsonHeaders();
 
 $lat = (float)($_GET['lat'] ?? 43.65); // Default Toronto
 $lon = (float)($_GET['lon'] ?? -79.38);
 $city = $_GET['city'] ?? 'Weather';
 
 // Cache per location
-$cacheSalt = "LibreJoanne_Weather_Salt_";
-$cacheFile = __DIR__ . "/../data/cache/weather.cache." . md5($cacheSalt . $lat . $lon . $city) . ".json";
+$cacheFile = LibreApp::cachePath('weather', 'LibreJoanne_Weather_Salt_', $lat . $lon . $city, 'json');
 $ttl = 900; // 15 minutes
 
 if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
@@ -36,17 +27,9 @@ if (!LibreDb::isValidRemoteUrl($url)) {
     exit;
 }
 
-$opts = [
-    "http" => [
-        "method" => "GET",
-        "header" => "User-Agent: LibreJoanne/1.0\r\n",
-        "timeout" => 5
-    ]
-];
-$context = stream_context_create($opts);
-$response = @file_get_contents($url, false, $context);
+$response = LibreHttp::get($url, 5);
 
-if ($response === false) {
+if ($response === null) {
     http_response_code(503);
     echo json_encode(["error" => "Weather service unavailable"]);
     exit;

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/smoke.sh:*)",
+      "Bash(scripts/smoke.sh:*)",
+      "Bash(./scripts/php:*)",
+      "Bash(scripts/php:*)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -sS http://127.0.0.1:*)",
+      "Bash(curl -i http://127.0.0.1:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -sS http://localhost:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman images:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/php-lint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

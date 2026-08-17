@@ -28,7 +28,12 @@ LibreJoanne is a lightweight, self-hosted meeting room signage and personal dash
 ```text
 /
 ├── README.md          # Public documentation
-├── gemini.md          # Project vision and AI context
+├── CLAUDE.md          # Working conventions for contributors and AI agents
+├── docs/
+│   └── ARCHITECTURE.md # Design intent, subsystems, and roadmap
+├── scripts/
+│   ├── php            # Interpreter shim (native PHP, or pinned container)
+│   └── smoke.sh       # Lint + endpoint/view smoke test
 └── web/
     ├── app/           # Public Document Root (Only reachable files)
     │   ├── index.php  # Main UI logic
@@ -65,6 +70,62 @@ Point your e-ink device to the absolute URLs provided in the management dashboar
 - **Navigation**: Use the `<` and `>` buttons in the header to browse weeks.
 - **Reset**: Tap the **Time/Today** button on the far left to return to the current period.
 
+## Development
+
+```bash
+scripts/php -S 127.0.0.1:8000 -t web/app
+scripts/smoke.sh                 # lint every PHP file, then check every endpoint and view
+```
+
+`scripts/php` uses a native `php` when one is on `PATH`, and otherwise runs a pinned
+`php:8.3-cli` container via podman or docker — so no PHP installation is required.
+Set `PHP_BIN` to point at a specific interpreter.
+
+`scripts/smoke.sh` is the project's verification loop in place of a unit test suite.
+It fails on PHP diagnostics rendered into a response body, which a status-code check
+would miss. It passes offline: endpoints that depend on a remote API assert a
+well-formed response, not live data.
+
+## Deployment
+
+`scripts/deploy-joanne.sh` deploys or updates a checkout on a server. It is written for
+a shared-hosting layout with SSH and git, and every path is overridable by environment
+variable (`JOANNE_APP_DIR`, `JOANNE_LINK`, `JOANNE_HEALTH_URL`, `JOANNE_REPO`).
+
+```bash
+~/scripts/deploy-joanne.sh              # redeploy whatever ref is already live
+~/scripts/deploy-joanne.sh main         # switch to a branch, tag or commit
+~/scripts/deploy-joanne.sh --status     # what is deployed, and is it healthy
+```
+
+**The checkout must live outside the web root.** The script keeps it in `~/apps/joanne`
+and publishes only `web/app` through a symlink:
+
+```text
+~/apps/joanne                    checkout, no URL
+~/htdocs/<site>/joanne  ->  ~/apps/joanne/web/app
+```
+
+This matters because `web/data/.htaccess` protects nothing on nginx or any other server
+that does not read `.htaccess`. If the checkout sits inside the web root there, the
+SQLite database and `config.php` — which holds the encryption key — are downloadable.
+Keeping `web/data` outside the published tree means those files have no URL at all,
+whatever the server is.
+
+On first run the script generates `web/data/config.php` with a random encryption key and
+setup password, inheriting all other defaults from `config.sample.php`. It is never
+regenerated: **changing `encryption_key` makes every stored calendar URL undecryptable.**
+`web/data` is git-ignored, so the config, database and caches survive every update.
+
+After deploying it verifies the result: it lints, checks the page and `calendar.php`,
+greps the response for PHP diagnostics, and probes the private paths to confirm they are
+still unreachable. Note that it does not follow redirects when probing, since a host may
+redirect unknown paths rather than returning 404.
+
+If PHP-FPM runs as a different user than the SSH account, as it commonly does, the two
+must share a group: `web/data` is created group-writable and setgid so both can maintain
+it, and `config.php` is group-readable so PHP can load it.
+
 ## URL Parameter Overrides
 
 You can override most configuration settings via URL parameters for testing or specific device needs:
@@ -75,8 +136,46 @@ You can override most configuration settings via URL parameters for testing or s
 - **`lang`**: Force a language (`en` or `fr`).
 - **`show_rss`**: Toggle the news ticker (`1` or `0`).
 - **`show_weather`**: Toggle the weather widget (`1` or `0`).
+- **`show_clock`**: Toggle the header clock (`1` or `0`). See Battery Life below.
+- **`power_save`**: Lengthen every refresh interval (`1` or `0`). See Battery Life below.
+
+Toggles accept `1`/`0`, `true`/`false`, `yes`/`no` and `on`/`off`.
 - **`cal`**: (Personal view only) Append an additional iCal feed URL. Can be used multiple times.
 - **`dev_ip` / `dev_batt` / `dev_sig`**: Manually provide telemetry data (normally handled by Visionect headers).
+
+## Battery Life
+
+A Visionect panel repaints when the rendered page changes, and each repaint wakes the
+display and the radio. Battery life is therefore governed by **how often pixels change**,
+not by how much work the page does. Two mechanisms control that:
+
+**`?show_clock=0`** removes the header clock. A visible clock guarantees one repaint every
+minute forever, which is usually the single largest avoidable cost on the page. With the
+clock hidden the panel only repaints when the schedule, weather or headlines actually
+change. In the 7-day grid the button remains available as "Today" whenever you have
+navigated away from the current week.
+
+**`?power_save=1`** lengthens every refresh interval:
+
+| | Default | Power save |
+| --- | --- | --- |
+| Clock | 1 min | 5 min |
+| Device telemetry | 1 min | 5 min |
+| News rotation | 10 s | 60 s |
+| News refresh | 10 min | 30 min |
+| Weather | 30 min | 60 min |
+
+In power save the clock also displays time rounded down to the 5-minute step, so it is
+coarse rather than silently stale.
+
+Independently of both flags, the page now writes to the DOM only when a value has actually
+changed, so a refresh that returns identical content costs no repaint at all.
+
+For the longest battery life on a status panel, combine them and drop the ticker:
+
+```text
+?room=boardroom&show_clock=0&power_save=1&show_rss=0
+```
 
 ## Room Resolution & Special Keys
 

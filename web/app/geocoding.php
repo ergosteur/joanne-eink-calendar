@@ -1,14 +1,10 @@
 <?php
 // web/app/geocoding.php — City search proxy for Open-Meteo
 
-header("Content-Type: application/json");
+require_once __DIR__ . '/../lib/bootstrap.php';
+[$config, $db] = LibreApp::boot();
 
-$configFile = __DIR__ . '/../data/config.php';
-if (!file_exists($configFile)) {
-    $configFile = __DIR__ . '/../data/config.sample.php';
-}
-$config = require $configFile;
-require_once __DIR__ . "/../lib/db.php";
+LibreApp::jsonHeaders();
 
 $name = $_GET['name'] ?? '';
 if (strlen($name) < 2) {
@@ -24,17 +20,9 @@ if (!LibreDb::isValidRemoteUrl($url)) {
     exit;
 }
 
-$opts = [
-    "http" => [
-        "method" => "GET",
-        "header" => "User-Agent: LibreJoanne/1.0\r\n",
-        "timeout" => 5
-    ]
-];
-$context = stream_context_create($opts);
-$response = @file_get_contents($url, false, $context);
+$response = LibreHttp::get($url, 5);
 
-if ($response === false) {
+if ($response === null) {
     http_response_code(503);
     echo json_encode(["error" => "Geocoding service unavailable"]);
     exit;
