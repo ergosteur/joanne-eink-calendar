@@ -83,6 +83,9 @@ Designed for trusted LAN deployment, not public internet. Existing invariants to
 - `?cal=` overrides are accepted only in the `personal` context and only after `isValidRemoteUrl()` filtering. Config/DB feed URLs are intentionally *not* filtered, since they may legitimately be local.
 - Calendar URLs are stored AES-256-CBC encrypted (`LibreDb::encrypt`/`decrypt`, random IV prefixed); the `rooms.calendar_url` column stores a plain JSON array instead.
 - `manage.php` is session-based with per-action RBAC: admins manage everything, a standard user may only touch their own row and their own calendars. Each mutation re-checks `$_SESSION['is_admin'] || $_SESSION['user_id'] == $target`.
+- Every state-changing request must pass `csrfValid()`, enforced at one choke point that empties `$_POST` on failure — so a new handler is protected by default. Destructive actions must be POST; a GET that mutates is reachable by any page the admin visits.
+- Failed logins and setup attempts go through `LibreThrottle` (per-IP *and* per-username counters — each catches what the other misses). Never add a `sleep()` to a rejection path: it pins a PHP-FPM worker and converts brute force into worker-pool exhaustion.
+- `LibreApp::clientIp()` only believes `X-Forwarded-For` from a configured trusted proxy, and only its right-most entry. Anything else lets a client pick its own rate-limit bucket.
 - `web/data/.htaccess` (`Deny from all`) is the only protection on the DB and caches. `manage.php` self-tests this by fetching a cache file over HTTP and warns loudly if it returns 200 — that check is Apache-specific and will report a false positive under `php -S`.
 
 ### Schema migrations

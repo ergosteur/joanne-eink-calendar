@@ -42,7 +42,36 @@ function e($value): string
 // Prevent caching of the management dashboard
 LibreApp::noCacheHeaders();
 
+// This page holds credentials and feed URLs, so keep it out of frames and stop the
+// browser guessing content types.
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: same-origin");
+header("Content-Security-Policy: frame-ancestors 'none'");
+
 $pdo = $db->getPdo();
+
+$clientIp = LibreApp::clientIp($config);
+$throttle = new LibreThrottle($pdo, $config);
+
+// Optional allowlist. Checked before anything else on the page, including the login
+// form, so a restricted deployment presents no authentication surface at all.
+$allowedIps = $config['security']['manage_allow_ips'] ?? [];
+if (!empty($allowedIps)) {
+    $permitted = false;
+    foreach ((array)$allowedIps as $range) {
+        if (LibreApp::ipMatches($clientIp, (string)$range)) {
+            $permitted = true;
+            break;
+        }
+    }
+    if (!$permitted) {
+        http_response_code(403);
+        header("Content-Type: text/plain; charset=utf-8");
+        echo "Forbidden.\n";
+        exit;
+    }
+}
 
 $error = "";
 $message = "";
@@ -120,17 +149,24 @@ if (isset($_POST['logout'])) {
 // SETUP FLOW: First time admin creation
 if (!$adminExists) {
     if (isset($_POST['setup'])) {
-        if ($_POST['setup_password'] === $config['security']['setup_password']) {
+        // The setup password creates an administrator, so it is throttled exactly like
+        // a login.
+        $wait = $throttle->retryAfter(LibreThrottle::SETUP, $clientIp);
+        if ($wait !== null) {
+            $error = "Too many attempts. Try again in " . LibreThrottle::describeWait($wait) . ".";
+        } elseif (hash_equals((string)$config['security']['setup_password'], (string)($_POST['setup_password'] ?? ''))) {
             $token = bin2hex(random_bytes(16));
             $hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, access_token, is_admin) VALUES (?, ?, ?, 1)");
             $stmt->execute([$_POST['username'], $hash, $token]);
+            $throttle->recordSuccess(LibreThrottle::SETUP, $clientIp);
             session_regenerate_id(true); // Do not carry a pre-login session id forward.
             $_SESSION['user_id'] = $pdo->lastInsertId();
             $_SESSION['is_admin'] = true;
             $message = "Setup complete! Admin account created.";
             $adminExists = true;
         } else {
+            $throttle->recordFailure(LibreThrottle::SETUP, $clientIp);
             $error = "Incorrect Setup Password.";
         }
     }
@@ -138,16 +174,35 @@ if (!$adminExists) {
 // LOGIN FLOW
 else if (!isset($_SESSION['user_id'])) {
     if (isset($_POST['login'])) {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
-        $stmt->execute([$_POST['username']]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $username = (string)($_POST['username'] ?? '');
+        $wait = $throttle->retryAfter(LibreThrottle::LOGIN, $clientIp, $username);
 
-        if ($user && password_verify($_POST['password'], $user['password_hash'])) {
-            session_regenerate_id(true); // Do not carry a pre-login session id forward.
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['is_admin'] = (bool)$user['is_admin'];
+        if ($wait !== null) {
+            // Reject without verifying, and without sleeping: a delayed response would
+            // pin a PHP-FPM worker for the duration.
+            $error = "Too many failed attempts. Try again in " . LibreThrottle::describeWait($wait) . ".";
         } else {
-            $error = "Invalid username or password.";
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && password_verify((string)($_POST['password'] ?? ''), $user['password_hash'])) {
+                $throttle->recordSuccess(LibreThrottle::LOGIN, $clientIp, $username);
+                session_regenerate_id(true); // Do not carry a pre-login session id forward.
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['is_admin'] = (bool)$user['is_admin'];
+            } else {
+                if (!$user) {
+                    // Hash something anyway. Skipping the verify for an unknown username
+                    // returns measurably faster and so discloses which names exist.
+                    password_verify(
+                        (string)($_POST['password'] ?? ''),
+                        '$2y$10$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG'
+                    );
+                }
+                $throttle->recordFailure(LibreThrottle::LOGIN, $clientIp, $username);
+                $error = "Invalid username or password.";
+            }
         }
     }
 }

@@ -198,6 +198,41 @@ LibreJoanne is designed for deployment on trusted internal networks (LAN). Its s
 - **Local Feed Hardening**: Local iCal feeds are restricted to the `demo.ics.php` file within the `web/app/` directory to prevent directory traversal and unauthorized file execution.
 - **Encrypted Storage**: Sensitive data, such as calendar URLs, are stored encrypted using AES-256-CBC.
 - **Access Control**: The management dashboard is protected by session-based authentication. Personal views are protected by unique, non-sequential access tokens.
+- **CSRF Protection**: Every state-changing dashboard request must carry a per-session token, and destructive actions are POST-only. The session cookie is `HttpOnly` and `SameSite=Lax`, and the session id is regenerated on login.
+- **Login Throttling**: Failed logins are counted in a sliding window, per source address and per account name, and a lockout rejects further attempts until the window passes. The initial setup password is throttled the same way. See below.
+
+### Hardening the dashboard
+
+If `manage.php` is reachable from the internet, tune these in `config.php`:
+
+```php
+'security' => [
+    // Sliding-window lockout. A correct login clears both counters.
+    'login_window'       => 900,  // seconds
+    'login_max_per_ip'   => 10,   // catches one address spraying many usernames
+    'login_max_per_user' => 5,    // catches many addresses targeting one account
+
+    // Strongest available control: if non-empty, every other address gets 403 before
+    // the login form is even rendered. Addresses or CIDR ranges, v4 or v6.
+    'manage_allow_ips' => ['203.0.113.4', '10.20.28.0/22'],
+
+    // Only set this if a reverse proxy really fronts the app. Otherwise a client can
+    // forge X-Forwarded-For and choose its own rate-limit bucket.
+    'trusted_proxies' => [],
+],
+```
+
+Both counters exist because they catch different attacks: one address trying many
+usernames never trips a per-account counter, and many addresses trying one username
+never trips a per-address counter.
+
+Lockout rejects rather than delaying. A deliberate response delay would hold a PHP-FPM
+worker open for its duration, which turns a brute-force attempt into a way to exhaust
+the worker pool.
+
+Throttling raises the cost of guessing; it does not make an internet-facing dashboard
+equivalent to a private one. If you can, put the allowlist in front of it, or a reverse
+proxy with its own authentication.
 
 If you must expose the application to the internet, it is strongly recommended to use a reverse proxy with additional authentication (e.g., Basic Auth, Authelia) and IP allow-listing.
 

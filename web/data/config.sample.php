@@ -73,6 +73,22 @@ return [
     'security' => [
         'db_path' => __DIR__ . '/librejoanne.db',
         'encryption_key' => 'ChangeThisToSomethingRandomAndSecret', // Used to protect stored URLs
-        'setup_password' => 'admin123' // Only used for initial setup
+        'setup_password' => 'admin123', // Only used for initial setup
+
+        // Failed-login throttling for manage.php. Counted in a sliding window, per
+        // source address and per account name; a correct login clears both counters.
+        'login_window'       => 900, // seconds
+        'login_max_per_ip'   => 10,
+        'login_max_per_user' => 5,
+
+        // Optional allowlist for manage.php. Addresses or CIDR ranges, v4 or v6.
+        // Empty means no restriction. The strongest control available if the dashboard
+        // is reachable from the internet, e.g. ['203.0.113.4', '10.20.28.0/22'].
+        'manage_allow_ips' => [],
+
+        // Proxies whose X-Forwarded-For may be believed. Empty means REMOTE_ADDR is
+        // used as-is. Only set this if a reverse proxy really does front the app,
+        // otherwise a client can forge its own address.
+        'trusted_proxies' => [],
     ]
 ];

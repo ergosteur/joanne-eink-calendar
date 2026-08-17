@@ -56,6 +56,20 @@ class LibreDb {
             future_horizon INTEGER DEFAULT 30
         )");
 
+        // Failed authentication attempts, for throttling. Only failures are stored, and
+        // rows outside the window are pruned on write.
+        $this->pdo->exec("CREATE TABLE IF NOT EXISTS auth_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            username TEXT,
+            attempted_at INTEGER NOT NULL
+        )");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_auth_attempts_ip
+                          ON auth_attempts (kind, ip, attempted_at)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_auth_attempts_user
+                          ON auth_attempts (kind, username, attempted_at)");
+
         // Self-healing: Add columns if they are missing from an older schema
         $this->ensureColumn('users', 'weather_lat', 'REAL');
         $this->ensureColumn('users', 'weather_lon', 'REAL');

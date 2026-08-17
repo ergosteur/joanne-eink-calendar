@@ -9,6 +9,7 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/context.php';
 require_once __DIR__ . '/ical.php';
+require_once __DIR__ . '/throttle.php';
 
 class LibreApp
 {
@@ -74,5 +75,86 @@ class LibreApp
     {
         header("Content-Type: application/json");
         self::noCacheHeaders();
+    }
+
+    /**
+     * The client address, used for throttling and the dashboard allowlist.
+     *
+     * X-Forwarded-For is only honoured when the immediate peer is a configured trusted
+     * proxy. Trusting it unconditionally would let anyone reset their own rate limit, or
+     * forge their way past an allowlist, by sending a header.
+     */
+    public static function clientIp(array $config): string
+    {
+        $remote = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+        $trusted = $config['security']['trusted_proxies'] ?? [];
+
+        if ($remote === '' || empty($trusted)) {
+            return $remote !== '' ? $remote : '0.0.0.0';
+        }
+
+        $isTrustedPeer = false;
+        foreach ((array)$trusted as $range) {
+            if (self::ipMatches($remote, (string)$range)) {
+                $isTrustedPeer = true;
+                break;
+            }
+        }
+        if (!$isTrustedPeer) {
+            return $remote;
+        }
+
+        $forwarded = (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+        if ($forwarded === '') {
+            return $remote;
+        }
+
+        // Right-most entry is the one the trusted proxy itself observed; anything
+        // further left was supplied by the client and cannot be believed.
+        $parts = array_map('trim', explode(',', $forwarded));
+        $candidate = end($parts);
+
+        return filter_var($candidate, FILTER_VALIDATE_IP) !== false ? $candidate : $remote;
+    }
+
+    /**
+     * Match an address against a literal address or a CIDR range, v4 or v6.
+     */
+    public static function ipMatches(string $ip, string $range): bool
+    {
+        $range = trim($range);
+        if ($range === '') {
+            return false;
+        }
+
+        if (!str_contains($range, '/')) {
+            return @inet_pton($ip) !== false && @inet_pton($ip) === @inet_pton($range);
+        }
+
+        [$subnet, $bits] = explode('/', $range, 2);
+        $ipBin = @inet_pton($ip);
+        $subnetBin = @inet_pton($subnet);
+        if ($ipBin === false || $subnetBin === false || strlen($ipBin) !== strlen($subnetBin)) {
+            return false;
+        }
+
+        $bits = (int)$bits;
+        $maxBits = strlen($ipBin) * 8;
+        if ($bits < 0 || $bits > $maxBits) {
+            return false;
+        }
+
+        $whole = intdiv($bits, 8);
+        $remainder = $bits % 8;
+
+        if ($whole > 0 && strncmp($ipBin, $subnetBin, $whole) !== 0) {
+            return false;
+        }
+        if ($remainder === 0) {
+            return true;
+        }
+
+        $mask = chr(0xFF << (8 - $remainder) & 0xFF);
+        return (($ipBin[$whole] & $mask) === ($subnetBin[$whole] & $mask));
     }
 }
