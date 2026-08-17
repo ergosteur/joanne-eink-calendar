@@ -95,6 +95,8 @@ Designed for trusted LAN deployment, not public internet. Existing invariants to
 
 E-ink constraints shape the CSS and JS: fixed 1024x768 body, pure black on white, no gradients or shadows, and **pagination instead of scrolling or continuous animation** (the news ticker swaps pages rather than marquees). Keep new UI within those rules.
 
+**Repaints are the battery cost.** The panel repaints when the rendered page changes, so any unconditional DOM write on a timer drains the device even when the content is identical. Two rules hold in `index.php`: periodic code writes through `setText`/`setHtml`/`setStyle`, which return early when the value is unchanged; and all intervals come from the `REFRESH` object, which `?power_save=1` lengthens. `?show_clock=0` removes the once-a-minute clock repaint entirely. When adding anything that updates on a timer, route it through those helpers and add its interval to `REFRESH` rather than hardcoding one.
+
 All user-visible strings live in the `i18n` object (`en` / `fr`) — add both when adding text. Device telemetry comes from `X-Visionect-*` / `X-Device-*` headers, the `okular` JS object, or `?dev_ip`/`?dev_batt`/`?dev_sig`; a room whose feed list contains `demo.ics.php` gets dummy 69% battery/signal.
 
 ## Conventions

@@ -37,6 +37,12 @@ class LibreContext
     public bool $showRss = true;
     public bool $showWeather = true;
 
+    /** The clock repaints the panel every minute; ?show_clock=0 turns that off. */
+    public bool $showClock = true;
+
+    /** Trade refresh frequency for battery life on panels. */
+    public bool $powerSave = false;
+
     /** @var string[] Resolved feeds: room feeds, replaced by user feeds, plus ?cal= overrides. */
     public array $calendarUrls = [];
 
@@ -138,10 +144,16 @@ class LibreContext
         }
 
         if (isset($query['show_rss'])) {
-            $ctx->showRss = (bool)$query['show_rss'];
+            $ctx->showRss = self::flag($query['show_rss']);
         }
         if (isset($query['show_weather'])) {
-            $ctx->showWeather = (bool)$query['show_weather'];
+            $ctx->showWeather = self::flag($query['show_weather']);
+        }
+        if (isset($query['show_clock'])) {
+            $ctx->showClock = self::flag($query['show_clock']);
+        }
+        if (isset($query['power_save'])) {
+            $ctx->powerSave = self::flag($query['power_save']);
         }
 
         // ---- Feeds ---------------------------------------------------------------
@@ -182,6 +194,18 @@ class LibreContext
         }
 
         return $ctx;
+    }
+
+    /**
+     * Interpret a URL toggle. A bare (bool) cast treated "false" and "off" as true,
+     * because any non-empty string is truthy.
+     */
+    private static function flag($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        return !in_array(strtolower(trim((string)$value)), ['0', 'false', 'no', 'off', ''], true);
     }
 
     private static function horizon($value): int

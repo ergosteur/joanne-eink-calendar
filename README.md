@@ -96,8 +96,46 @@ You can override most configuration settings via URL parameters for testing or s
 - **`lang`**: Force a language (`en` or `fr`).
 - **`show_rss`**: Toggle the news ticker (`1` or `0`).
 - **`show_weather`**: Toggle the weather widget (`1` or `0`).
+- **`show_clock`**: Toggle the header clock (`1` or `0`). See Battery Life below.
+- **`power_save`**: Lengthen every refresh interval (`1` or `0`). See Battery Life below.
+
+Toggles accept `1`/`0`, `true`/`false`, `yes`/`no` and `on`/`off`.
 - **`cal`**: (Personal view only) Append an additional iCal feed URL. Can be used multiple times.
 - **`dev_ip` / `dev_batt` / `dev_sig`**: Manually provide telemetry data (normally handled by Visionect headers).
+
+## Battery Life
+
+A Visionect panel repaints when the rendered page changes, and each repaint wakes the
+display and the radio. Battery life is therefore governed by **how often pixels change**,
+not by how much work the page does. Two mechanisms control that:
+
+**`?show_clock=0`** removes the header clock. A visible clock guarantees one repaint every
+minute forever, which is usually the single largest avoidable cost on the page. With the
+clock hidden the panel only repaints when the schedule, weather or headlines actually
+change. In the 7-day grid the button remains available as "Today" whenever you have
+navigated away from the current week.
+
+**`?power_save=1`** lengthens every refresh interval:
+
+| | Default | Power save |
+| --- | --- | --- |
+| Clock | 1 min | 5 min |
+| Device telemetry | 1 min | 5 min |
+| News rotation | 10 s | 60 s |
+| News refresh | 10 min | 30 min |
+| Weather | 30 min | 60 min |
+
+In power save the clock also displays time rounded down to the 5-minute step, so it is
+coarse rather than silently stale.
+
+Independently of both flags, the page now writes to the DOM only when a value has actually
+changed, so a refresh that returns identical content costs no repaint at all.
+
+For the longest battery life on a status panel, combine them and drop the ticker:
+
+```text
+?room=boardroom&show_clock=0&power_save=1&show_rss=0
+```
 
 ## Room Resolution & Special Keys
 
