@@ -447,6 +447,11 @@ $allTimezones = DateTimeZone::listIdentifiers();
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+        /* Names the URL parameter that overrides a setting per-request, so the
+           reference sits next to the setting rather than only in the README. */
+        .param-hint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                      font-size: 0.7rem; font-weight: 500; text-transform: none;
+                      color: #9aa0a6; margin-left: 6px; }
         
         input[type=text], input[type=password], select, textarea { 
             padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; background: #fafafa; transition: 0.2s;
@@ -609,7 +614,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                             <input type="text" name="display_name" placeholder="e.g. Matt" value="<?= htmlspecialchars((string)$user['display_name']) ?>">
                         </div>
                         <div class="form-group">
-                            <label>Preferred View</label>
+                            <label>Preferred View <span class="param-hint">?view=</span></label>
                             <select name="view">
                                 <option value="dashboard" <?= $user['view'] === 'dashboard' ? 'selected' : '' ?>>Dashboard</option>
                                 <option value="grid" <?= $user['view'] === 'grid' ? 'selected' : '' ?>>7-Day Grid</option>
@@ -628,7 +633,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                             <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London (Default: Config)" value="<?= e($user['timezone'] ?? '') ?>">
                         </div>
                         <div class="form-group">
-                            <label>Language</label>
+                            <label>Language <span class="param-hint">?lang=</span></label>
                             <select name="lang">
                                 <option value="" <?= ($user['lang'] ?? '') === '' ? 'selected' : '' ?>>Site Default</option>
                                 <option value="en" <?= ($user['lang'] ?? '') === 'en' ? 'selected' : '' ?>>English</option>
@@ -636,7 +641,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Display</label>
+                            <label>Display <span class="param-hint">?show_clock=</span></label>
                             <div style="padding:10px 0;">
                                 <label style="text-transform:none; font-weight:600; color:var(--text);">
                                     <input type="checkbox" name="show_clock" <?= ($user['show_clock'] ?? 1) ? 'checked' : '' ?>> Show Clock
@@ -737,7 +742,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Room Key</label>
+                        <label>Room Key <span class="param-hint">?room=</span></label>
                         <input type="text" name="room_key" placeholder="boardroom" value="<?= e($editRoom['room_key'] ?? '') ?>" required>
                     </div>
                     <div class="form-group">
@@ -760,7 +765,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 
                 <div class="form-grid" style="margin-top:1rem;">
                     <div class="form-group">
-                        <label>View Mode</label>
+                        <label>View Mode <span class="param-hint">?view=</span></label>
                         <select name="view">
                             <option value="room" <?= ($editRoom['view'] ?? '') === 'room' ? 'selected' : '' ?>>Room Status</option>
                             <option value="dashboard" <?= ($editRoom['view'] ?? '') === 'dashboard' ? 'selected' : '' ?>>Personal Dashboard</option>
@@ -780,7 +785,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                         <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London" value="<?= e($editRoom['timezone'] ?? '') ?>">
                     </div>
                     <div class="form-group">
-                        <label>Language</label>
+                        <label>Language <span class="param-hint">?lang=</span></label>
                         <select name="lang">
                             <option value="" <?= ($editRoom['lang'] ?? '') === '' ? 'selected' : '' ?>>Site Default</option>
                             <option value="en" <?= ($editRoom['lang'] ?? '') === 'en' ? 'selected' : '' ?>>English</option>
@@ -790,9 +795,9 @@ $allTimezones = DateTimeZone::listIdentifiers();
                     <div class="form-group">
                         <label>Display</label>
                         <div style="padding:10px 0; display:flex; flex-wrap:wrap; gap:14px;">
-                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_clock" <?= ($editRoom['show_clock'] ?? 1) ? 'checked' : '' ?>> Clock</label>
-                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_rss" <?= ($editRoom['show_rss'] ?? 1) ? 'checked' : '' ?>> RSS Ticker</label>
-                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_weather" <?= ($editRoom['show_weather'] ?? 1) ? 'checked' : '' ?>> Weather</label>
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_clock" <?= ($editRoom['show_clock'] ?? 1) ? 'checked' : '' ?>> Clock <span class="param-hint">?show_clock=</span></label>
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_rss" <?= ($editRoom['show_rss'] ?? 1) ? 'checked' : '' ?>> RSS Ticker <span class="param-hint">?show_rss=</span></label>
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_weather" <?= ($editRoom['show_weather'] ?? 1) ? 'checked' : '' ?>> Weather <span class="param-hint">?show_weather=</span></label>
                         </div>
                     </div>
                 </div>
