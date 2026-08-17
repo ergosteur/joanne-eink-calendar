@@ -284,8 +284,8 @@ if (isset($_POST['save_user_view'])) {
             $lang = '';
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, timezone = ?, lang = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
-        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['timezone'], $lang, $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
+        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, timezone = ?, lang = ?, show_clock = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
+        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['timezone'], $lang, isset($_POST['show_clock']) ? 1 : 0, $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
         clearAllCaches();
         $message = "User preferences updated and caches cleared.";
     }
@@ -380,20 +380,20 @@ if ($_SESSION['is_admin']) {
 
             $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
             if (!empty($_POST['room_id'])) {
-                $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, lang=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
+                $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, lang=?, show_clock=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
                 $stmt->execute([
                     $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'], $roomLang,
-                    isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
+                    isset($_POST['show_clock']) ? 1 : 0, isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                     $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
                     $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
                 ]);
                 $message = "Room updated!";
             } else {
-                $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, lang, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, lang, show_clock, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 try {
                     $stmt->execute([
                         $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'], $roomLang,
-                        isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
+                        isset($_POST['show_clock']) ? 1 : 0, isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                         $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
                         $_POST['past_horizon'], $_POST['future_horizon']
                     ]);
@@ -635,6 +635,14 @@ $allTimezones = DateTimeZone::listIdentifiers();
                                 <option value="fr" <?= ($user['lang'] ?? '') === 'fr' ? 'selected' : '' ?>>Français</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Display</label>
+                            <div style="padding:10px 0;">
+                                <label style="text-transform:none; font-weight:600; color:var(--text);">
+                                    <input type="checkbox" name="show_clock" <?= ($user['show_clock'] ?? 1) ? 'checked' : '' ?>> Show Clock
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <div style="position:relative;">
@@ -729,7 +737,7 @@ $allTimezones = DateTimeZone::listIdentifiers();
                 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Room Key (URL Slug)</label>
+                        <label>Room Key</label>
                         <input type="text" name="room_key" placeholder="boardroom" value="<?= e($editRoom['room_key'] ?? '') ?>" required>
                     </div>
                     <div class="form-group">
@@ -780,10 +788,11 @@ $allTimezones = DateTimeZone::listIdentifiers();
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Options</label>
-                        <div style="padding:10px 0;">
-                            <label><input type="checkbox" name="show_rss" <?= ($editRoom['show_rss'] ?? 1) ? 'checked' : '' ?>> RSS Ticker</label>
-                            <label style="margin-left:15px;"><input type="checkbox" name="show_weather" <?= ($editRoom['show_weather'] ?? 1) ? 'checked' : '' ?>> Weather</label>
+                        <label>Display</label>
+                        <div style="padding:10px 0; display:flex; flex-wrap:wrap; gap:14px;">
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_clock" <?= ($editRoom['show_clock'] ?? 1) ? 'checked' : '' ?>> Clock</label>
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_rss" <?= ($editRoom['show_rss'] ?? 1) ? 'checked' : '' ?>> RSS Ticker</label>
+                            <label style="text-transform:none; font-weight:600; color:var(--text);"><input type="checkbox" name="show_weather" <?= ($editRoom['show_weather'] ?? 1) ? 'checked' : '' ?>> Weather</label>
                         </div>
                     </div>
                 </div>

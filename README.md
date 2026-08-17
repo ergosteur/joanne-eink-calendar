@@ -138,10 +138,10 @@ You can override most configuration settings via URL parameters for testing or s
 - **`show_weather`**: Toggle the weather widget (`1` or `0`).
 - **`show_clock`**: Toggle the header clock (`1` or `0`). See Battery Life below.
 - **`power_save`**: Lengthen every refresh interval (`1` or `0`). See Battery Life below.
-
-Toggles accept `1`/`0`, `true`/`false`, `yes`/`no` and `on`/`off`.
 - **`cal`**: (Personal view only) Append an additional iCal feed URL. Can be used multiple times.
 - **`dev_ip` / `dev_batt` / `dev_sig`**: Manually provide telemetry data (normally handled by Visionect headers).
+
+Toggles accept `1`/`0`, `true`/`false`, `yes`/`no` and `on`/`off`.
 
 ## Battery Life
 
@@ -149,11 +149,17 @@ A Visionect panel repaints when the rendered page changes, and each repaint wake
 display and the radio. Battery life is therefore governed by **how often pixels change**,
 not by how much work the page does. Two mechanisms control that:
 
+Both are also settings in the management dashboard — per room and per user — with the
+URL parameter taking precedence for one-off testing on a device. Every dashboard setting
+that has a URL override now names it in small type beside the field.
+
 **`?show_clock=0`** removes the header clock. A visible clock guarantees one repaint every
 minute forever, which is usually the single largest avoidable cost on the page. With the
 clock hidden the panel only repaints when the schedule, weather or headlines actually
-change. In the 7-day grid the button remains available as "Today" whenever you have
-navigated away from the current week.
+change. In the 7-day grid the freed slot carries the display label instead — the display name,
+or failing that the account name in title case — which lets the first day cell go back to
+reading TODAY rather than repeating the name. The slot stays tappable and becomes the
+"Today" reset control whenever you have navigated away from the current week.
 
 **`?power_save=1`** lengthens every refresh interval:
 

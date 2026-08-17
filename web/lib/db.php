@@ -48,6 +48,7 @@ class LibreDb {
             time_format TEXT DEFAULT 'auto',
             timezone TEXT,
             lang TEXT,
+            show_clock INTEGER DEFAULT 1,
             past_horizon INTEGER DEFAULT 30,
             future_horizon INTEGER DEFAULT 30
         )");
@@ -68,6 +69,7 @@ class LibreDb {
             time_format TEXT DEFAULT 'auto',
             timezone TEXT,
             lang TEXT,
+            show_clock INTEGER DEFAULT 1,
             show_rss INTEGER DEFAULT 1,
             show_weather INTEGER DEFAULT 1,
             weather_lat REAL,
@@ -99,6 +101,7 @@ class LibreDb {
         $this->ensureColumn('users', 'time_format', 'TEXT');
         $this->ensureColumn('users', 'timezone', 'TEXT');
         $this->ensureColumn('users', 'lang', 'TEXT');
+        $this->ensureColumn('users', 'show_clock', 'INTEGER');
         $this->ensureColumn('users', 'past_horizon', 'INTEGER');
         $this->ensureColumn('users', 'future_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'weather_lat', 'REAL');
@@ -109,6 +112,7 @@ class LibreDb {
         $this->ensureColumn('rooms', 'time_format', 'TEXT');
         $this->ensureColumn('rooms', 'timezone', 'TEXT');
         $this->ensureColumn('rooms', 'lang', 'TEXT');
+        $this->ensureColumn('rooms', 'show_clock', 'INTEGER');
     }
 
     private function ensureColumn($table, $column, $type) {
@@ -134,6 +138,7 @@ class LibreDb {
             // Convert types back to what the app expects
             $room['calendar_url'] = json_decode((string)($room['calendar_url'] ?? '[]'), true) ?: [];
             $room['show_rss'] = (bool)$room['show_rss'];
+            $room['show_clock'] = $room['show_clock'] === null ? true : (bool)$room['show_clock'];
             $room['show_weather'] = (bool)$room['show_weather'];
             $room['weather_lat'] = (float)$room['weather_lat'];
             $room['weather_lon'] = (float)$room['weather_lon'];

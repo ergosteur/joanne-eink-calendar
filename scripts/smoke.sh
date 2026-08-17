@@ -250,6 +250,12 @@ check_markup "ticker, dashboard forced" "/?room=personal&show_rss=1" 'id="news-h
 check_markup "ticker, grid"           "/?room=personal-grid"     'id="news-headline"' absent
 check_markup "weather kept on dashboard" "/?room=personal"       'id="weather-display"' present
 
+# With the clock hidden, the grid moves the display label into the freed header slot
+# and its first cell goes back to saying TODAY.
+check_markup "clock on by default"    "/"                         'const showClock = true' present
+check_markup "clock off by param"     "/?show_clock=0"            'const showClock = false' present
+check_markup "account-name fallback emitted" "/"                  'const usernameLabel' present
+
 # The database-backed paths — rooms rows and tokenised users — are where the config
 # resolution chain does the most work, so exercise them whenever fixtures exist.
 # Populate with: scripts/php scripts/seed-dev-data.php

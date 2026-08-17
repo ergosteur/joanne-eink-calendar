@@ -40,6 +40,12 @@ class LibreContext
     /** The clock repaints the panel every minute; ?show_clock=0 turns that off. */
     public bool $showClock = true;
 
+    /**
+     * Account name of a tokenised user, title-cased. Used as the header label when no
+     * display label has been set, so a panel still says whose schedule it shows.
+     */
+    public string $usernameLabel = '';
+
     /** Trade refresh frequency for battery life on panels. */
     public bool $powerSave = false;
 
@@ -88,6 +94,7 @@ class LibreContext
         $ctx->timeFormat = ((string)($room['time_format'] ?? '')) ?: 'auto';
         $ctx->timezone = ((string)($room['timezone'] ?? '')) ?: (string)($config['calendar']['timezone'] ?? 'UTC');
         $ctx->showRss = (bool)($room['show_rss'] ?? true);
+        $ctx->showClock = (bool)($room['show_clock'] ?? true);
         $ctx->showWeather = (bool)($room['show_weather'] ?? true);
         $ctx->pastHorizon = self::horizon($room['past_horizon'] ?? null);
         $ctx->futureHorizon = self::horizon($room['future_horizon'] ?? null);
@@ -99,7 +106,8 @@ class LibreContext
         $user = null;
         if ($token !== '') {
             $stmt = $db->getPdo()->prepare(
-                "SELECT view, time_format, timezone, lang, weather_lat, weather_lon, weather_city,
+                "SELECT username, view, time_format, timezone, lang, show_clock,
+                        weather_lat, weather_lon, weather_city,
                         display_name, past_horizon, future_horizon
                  FROM users WHERE access_token = ?"
             );
@@ -113,7 +121,12 @@ class LibreContext
                 $ctx->view = (string)$user['view'];
             }
             $ctx->displayName = (string)($user['display_name'] ?? '');
+            $ctx->usernameLabel = self::titleCase((string)($user['username'] ?? ''));
             $ctx->timeFormat = ((string)($user['time_format'] ?? '')) ?: 'auto';
+            // NULL means the preference was never set, which reads as the default.
+            if ($user['show_clock'] !== null) {
+                $ctx->showClock = (bool)$user['show_clock'];
+            }
             if (!empty($user['timezone'])) {
                 $ctx->timezone = (string)$user['timezone'];
             }
@@ -212,6 +225,19 @@ class LibreContext
             return $value;
         }
         return !in_array(strtolower(trim((string)$value)), ['0', 'false', 'no', 'off', ''], true);
+    }
+
+    /**
+     * "john_smith" becomes "John Smith". Separators are treated as word breaks so an
+     * account name reads as a name rather than as a login.
+     */
+    private static function titleCase(string $value): string
+    {
+        $value = trim(str_replace(['_', '-', '.'], ' ', $value));
+        if ($value === '') {
+            return '';
+        }
+        return ucwords(mb_strtolower($value, 'UTF-8'));
     }
 
     private static function horizon($value): int

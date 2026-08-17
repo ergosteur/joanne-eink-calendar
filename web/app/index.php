@@ -143,6 +143,20 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
             color: #fff;
         }
 
+        /* The clock slot reused as a display label: no button chrome, but still
+           tappable, since in the grid it is also the reset-to-today control. */
+        .header-btn.as-label {
+            border: none;
+            background: transparent;
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            padding-left: 0;
+            justify-content: flex-start;
+        }
+
         .lang-indicator {
             margin-left: 20px;
         }
@@ -656,6 +670,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room') || 'default';
 const view = "<?= htmlspecialchars((string)$view) ?>";
 const displayName = "<?= htmlspecialchars((string)$displayName) ?>";
+const usernameLabel = "<?= htmlspecialchars((string)$ctx->usernameLabel) ?>";
 const timeFormat = "<?= htmlspecialchars((string)$timeFormat) ?>";
 const showRss = <?= $showRss ? 'true' : 'false' ?>;
 const showWeather = <?= $showWeather ? 'true' : 'false' ?>;
@@ -720,18 +735,28 @@ let autoLangTimer = null;
 let dateOffset = 0; // Number of 7-day periods to offset
 let headerLabel = "";
 let statusLabel = "";
+let labelInHeader = false;
 
 function updateLabels() {
   const t = i18n[lang];
   const rawRoomName = "<?= htmlspecialchars((string)($roomConfig['name'] ?? '')) ?>";
-  
+  const roomLabel = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
+
+  // Whose display this is: an explicit label, else the account name, else the room.
   if (isPersonalizedUser) {
-    headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
-    statusLabel = displayName || t.Today;
+    headerLabel = displayName || usernameLabel || roomLabel;
   } else {
-    headerLabel = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
-    statusLabel = t.Today;
+    headerLabel = roomLabel;
   }
+
+  // With the clock hidden the header slot is free, so the grid puts the label there.
+  // Every other view already prints the label in its body, so moving it would only
+  // duplicate it.
+  labelInHeader = !showClock && view === "grid";
+
+  // Once the label has a home in the header, the grid's first cell goes back to
+  // saying TODAY instead of repeating the name.
+  statusLabel = (!labelInHeader && displayName) ? displayName : t.Today;
 }
 
 function changeWeek(dir) {
@@ -910,13 +935,22 @@ function updateClock() {
       if (dateOffset !== 0) {
         // While browsing other weeks the button is the way back to today, so it stays
         // even when the clock is hidden.
+        timeBtn.className = "header-btn";
         setStyle(timeBtn, "display", "flex");
         setHtml(timeBtn, t.ReturnToToday);
       } else if (!showClock) {
         // Hiding the clock removes a guaranteed repaint every single minute, which on
-        // a battery panel is the largest avoidable cost on the page.
-        setStyle(timeBtn, "display", "none");
+        // a battery panel is the largest avoidable cost on the page. The freed slot
+        // carries the display label where nothing else shows it.
+        if (labelInHeader && headerLabel) {
+          timeBtn.className = "header-btn as-label";
+          setStyle(timeBtn, "display", "flex");
+          setHtml(timeBtn, headerLabel);
+        } else {
+          setStyle(timeBtn, "display", "none");
+        }
       } else {
+        timeBtn.className = "header-btn";
         setStyle(timeBtn, "display", "flex");
         let timeStr = formatTime(now);
 
