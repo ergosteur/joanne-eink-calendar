@@ -47,6 +47,7 @@ class LibreDb {
             display_name TEXT,
             time_format TEXT DEFAULT 'auto',
             timezone TEXT,
+            lang TEXT,
             past_horizon INTEGER DEFAULT 30,
             future_horizon INTEGER DEFAULT 30
         )");
@@ -96,6 +97,7 @@ class LibreDb {
         $this->ensureColumn('users', 'display_name', 'TEXT');
         $this->ensureColumn('users', 'time_format', 'TEXT');
         $this->ensureColumn('users', 'timezone', 'TEXT');
+        $this->ensureColumn('users', 'lang', 'TEXT');
         $this->ensureColumn('users', 'past_horizon', 'INTEGER');
         $this->ensureColumn('users', 'future_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'weather_lat', 'REAL');

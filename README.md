@@ -185,6 +185,12 @@ LibreJoanne uses a hierarchical resolution system for configurations:
 2. **`personal`**: The template for all User-tokenized views. Using `?userid=` automatically switches the context to `personal`. The settings in this block (name, base calendar feeds) act as the starting point before a user's individual database preferences (view mode, custom display label, coordinates) are applied.
 3. **Database Precedence**: Settings stored in the SQLite database (via the Management Dashboard) always override the hardcoded arrays in `config.php` if the keys match.
 
+Language resolves in the same order: the site default in `config.php` (`ui.lang`), then a
+user's **Language** preference in the dashboard, then `?lang=`. A user set to *Site
+Default* follows `config.php`, so changing it moves every such user at once. Because
+`time_format` defaults to `auto` — 24-hour for French, 12-hour for English — setting a
+user's language also changes how their times read unless they pin a format.
+
 Example: `http://your-server/index.php?room=bedroom&view=grid&lang=en&show_rss=0`
 
 ## Security & Deployment Model

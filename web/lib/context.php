@@ -50,6 +50,7 @@ class LibreContext
     public bool $usingDemoCalendar = false;
 
     public const VIEWS = ['room', 'dashboard', 'grid'];
+    public const LANGUAGES = ['en', 'fr'];
 
     private const DEFAULT_LAT = 43.65;
     private const DEFAULT_LON = -79.38;
@@ -94,7 +95,7 @@ class LibreContext
         $user = null;
         if ($token !== '') {
             $stmt = $db->getPdo()->prepare(
-                "SELECT view, time_format, timezone, weather_lat, weather_lon, weather_city,
+                "SELECT view, time_format, timezone, lang, weather_lat, weather_lon, weather_city,
                         display_name, past_horizon, future_horizon
                  FROM users WHERE access_token = ?"
             );
@@ -112,6 +113,10 @@ class LibreContext
             if (!empty($user['timezone'])) {
                 $ctx->timezone = (string)$user['timezone'];
             }
+            // Empty means "follow the site default" rather than a language.
+            if (in_array((string)($user['lang'] ?? ''), self::LANGUAGES, true)) {
+                $ctx->lang = (string)$user['lang'];
+            }
             self::applyLocation($ctx, $user['weather_lat'] ?? null, $user['weather_lon'] ?? null, $user['weather_city'] ?? null);
             if (!empty($user['past_horizon'])) {
                 $ctx->pastHorizon = self::horizon($user['past_horizon']);
@@ -123,11 +128,8 @@ class LibreContext
 
         // ---- URL overrides -------------------------------------------------------
 
-        if (isset($query['lang'])) {
-            $lang = (string)$query['lang'];
-            if ($lang === 'en' || $lang === 'fr') {
-                $ctx->lang = $lang;
-            }
+        if (isset($query['lang']) && in_array((string)$query['lang'], self::LANGUAGES, true)) {
+            $ctx->lang = (string)$query['lang'];
         }
 
         if (isset($query['view'])) {

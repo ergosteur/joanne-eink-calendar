@@ -278,8 +278,14 @@ if (isset($_POST['save_user_view'])) {
     if (!$_SESSION['is_admin'] && $_SESSION['user_id'] != $_POST['user_id']) {
         $error = "Unauthorized action.";
     } else {
-        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, timezone = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
-        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['timezone'], $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
+        // Empty means "follow the site default"; anything else must be a known language.
+        $lang = (string)($_POST['lang'] ?? '');
+        if (!in_array($lang, LibreContext::LANGUAGES, true)) {
+            $lang = '';
+        }
+
+        $stmt = $pdo->prepare("UPDATE users SET view = ?, time_format = ?, timezone = ?, lang = ?, weather_lat = ?, weather_lon = ?, weather_city = ?, display_name = ?, past_horizon = ?, future_horizon = ? WHERE id = ?");
+        $stmt->execute([$_POST['view'], $_POST['time_format'], $_POST['timezone'], $lang, $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], $_POST['display_name'], $_POST['past_horizon'], $_POST['future_horizon'], $_POST['user_id']]);
         clearAllCaches();
         $message = "User preferences updated and caches cleared.";
     }
@@ -613,7 +619,15 @@ $allTimezones = DateTimeZone::listIdentifiers();
                         </div>
                         <div class="form-group">
                             <label>Timezone Override</label>
-                            <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London (Default: Config)" value="<?= htmlspecialchars((string)($user['timezone'] ?? '')) ?>">
+                            <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London (Default: Config)" value="<?= e($user['timezone'] ?? '') ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Language</label>
+                            <select name="lang">
+                                <option value="" <?= ($user['lang'] ?? '') === '' ? 'selected' : '' ?>>Site Default</option>
+                                <option value="en" <?= ($user['lang'] ?? '') === 'en' ? 'selected' : '' ?>>English</option>
+                                <option value="fr" <?= ($user['lang'] ?? '') === 'fr' ? 'selected' : '' ?>>Français</option>
+                            </select>
                         </div>
                     </div>
 
