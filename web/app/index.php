@@ -24,14 +24,17 @@ $weatherLat         = $ctx->weatherLat;
 $weatherLon         = $ctx->weatherLon;
 $weatherCity        = $ctx->weatherCity;
 
-// The grid packs a full week plus a detailed today block; there is no room left
-// for the footer widgets.
-if ($view === 'grid') {
+// The news ticker is the most frequent repaint on the page — it pages every ten
+// seconds — and on a battery-powered panel that dominates everything else. It is
+// therefore limited to the room view, where the display is a shared noticeboard and
+// the churn is the point. Personal dashboards and the grid do without it.
+if ($view !== 'room') {
     $showRss = false;
-    $showWeatherWidget = false;
-} else {
-    $showWeatherWidget = $showWeather;
 }
+
+// The grid packs a full week plus a detailed today block; there is no space left for
+// the weather widget either.
+$showWeatherWidget = ($view === 'grid') ? false : $showWeather;
 
 // Capture Device Status (More robust detection for different gateway versions)
 $devIp = $_SERVER['HTTP_X_VISIONECT_DEVICE_IP'] ?? $_SERVER['HTTP_X_DEVICE_IP'] ?? $_GET['dev_ip'] ?? null;
@@ -791,9 +794,9 @@ function formatTime(input) {
 
 const i18n = {
   en: {
+    Now: "Now",
     AVAILABLE: "AVAILABLE",
     IN_USE: "IN USE",
-    Now: "Now",
     Next: "Next",
     NextMeeting: "Next meeting",
     NextEvent: "Next event",
@@ -809,9 +812,9 @@ const i18n = {
     MySchedule: "My Schedule"
   },
   fr: {
+    Now: "En cours",
     AVAILABLE: "DISPONIBLE",
     IN_USE: "OCCUPÉ",
-    Now: "En cours",
     Next: "Prochain",
     NextMeeting: "Prochaine réunion",
     NextEvent: "Prochain événement",

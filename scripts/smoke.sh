@@ -200,6 +200,21 @@ check_html() { # check_html <label> <path>
     pass "$label"
 }
 
+check_markup() { # check_markup <label> <path> <needle> <present|absent>
+    local label="$1" path="$2" needle="$3" want="$4"
+    fetch "$path"
+    if [ "$HTTP_CODE" != "200" ]; then
+        fail "$label — HTTP $HTTP_CODE"; return
+    fi
+    local found="absent"
+    grep -q -- "$needle" "$BODY" && found="present"
+    if [ "$found" = "$want" ]; then
+        pass "$label ($want)"
+    else
+        fail "$label — expected $want, found $found"
+    fi
+}
+
 # -------------------------------------------------------------- JSON endpoints
 
 head_ "JSON endpoints"
@@ -226,6 +241,14 @@ check_html "power save"                       "/?power_save=1"
 check_html "clock off + power save"           "/?show_clock=0&power_save=1"
 check_html "unknown room falls back"          "/?room=does-not-exist"
 check_html "manage.php (login gate)"          "/manage.php"
+
+# The news ticker pages every ten seconds, making it the page's most frequent repaint.
+# It belongs to the room view only; the other views must not carry it at any setting.
+check_markup "ticker, room view"      "/"                        'id="news-headline"' present
+check_markup "ticker, dashboard"      "/?room=personal"          'id="news-headline"' absent
+check_markup "ticker, dashboard forced" "/?room=personal&show_rss=1" 'id="news-headline"' absent
+check_markup "ticker, grid"           "/?room=personal-grid"     'id="news-headline"' absent
+check_markup "weather kept on dashboard" "/?room=personal"       'id="weather-display"' present
 
 # The database-backed paths — rooms rows and tokenised users — are where the config
 # resolution chain does the most work, so exercise them whenever fixtures exist.
