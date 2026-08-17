@@ -12,6 +12,25 @@ class LibreDb {
         $this->pdo = new PDO("sqlite:" . $config['security']['db_path']);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->init();
+        self::secureDatabaseFile($config['security']['db_path']);
+    }
+
+    /**
+     * SQLite creates the database using the process umask, typically 0644. That leaves
+     * the file — which holds access tokens and encrypted feed URLs — readable by every
+     * local account on a shared host, and not writable by the deploying user's group.
+     *
+     * Only the owning process can correct this, and the owner is whichever account the
+     * web server runs as, so it has to happen here rather than in the deploy script.
+     */
+    private static function secureDatabaseFile($path): void {
+        if (!is_string($path) || !is_file($path)) {
+            return;
+        }
+        $mode = @fileperms($path) & 0777;
+        if ($mode !== false && $mode !== 0660) {
+            @chmod($path, 0660);
+        }
     }
 
     private function init() {
