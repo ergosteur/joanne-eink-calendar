@@ -23,6 +23,14 @@ $futureDays = $ctx->futureHorizon;
 
 LibreApp::jsonHeaders();
 
+// Returning the default room's schedule under an unrecognised token would hand back
+// plausible data for an identity that does not exist.
+if ($ctx->tokenInvalid) {
+    http_response_code(404);
+    echo json_encode(["error" => "Unrecognised access token"], JSON_PRETTY_PRINT);
+    exit;
+}
+
 function getICS($url, $ttl) {
     $cacheFile = LibreApp::cachePath('calendar', 'LibreJoanne_Salt_', $url, 'ics');
 

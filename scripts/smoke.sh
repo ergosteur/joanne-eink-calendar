@@ -256,6 +256,15 @@ check_markup "clock on by default"    "/"                         'const showClo
 check_markup "clock off by param"     "/?show_clock=0"            'const showClock = false' present
 check_markup "account-name fallback emitted" "/"                  'const usernameLabel' present
 
+# An identity claim that fails must be visible, not quietly replaced by defaults.
+check_markup "bad token shows an error"   "/?userid=nosuchtoken00000000000000" 'class="error-title"' present
+check_markup "bad token renders no schedule" "/?userid=nosuchtoken00000000000000" 'class="status">Loading' absent
+check_markup "valid page renders the schedule" "/"                   'class="status">Loading' present
+check_markup "valid page has no error"    "/"                        'class="error-title"' absent
+check_markup "unknown room is flagged"    "/?room=does-not-exist"     'token-warning' present
+# The "?" typed where "&" belongs must not cost the user their preferences.
+check_markup "stranded parameter recovered" "/?room=default?view=grid" 'const view = "grid"' present
+
 # The database-backed paths — rooms rows and tokenised users — are where the config
 # resolution chain does the most work, so exercise them whenever fixtures exist.
 # Populate with: scripts/php scripts/seed-dev-data.php

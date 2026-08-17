@@ -19,10 +19,18 @@ $activeTimezone     = $ctx->timezone;
 $showRss            = $ctx->showRss;
 $showWeather        = $ctx->showWeather;
 $showClock          = $ctx->showClock;
+$tokenInvalid       = $ctx->tokenInvalid;
 $powerSave          = $ctx->powerSave;
 $weatherLat         = $ctx->weatherLat;
 $weatherLon         = $ctx->weatherLon;
 $weatherCity        = $ctx->weatherCity;
+
+// A panel whose token matched nothing has nothing legitimate to show, so the widgets
+// are suppressed rather than dressing up an error as a working display.
+if ($tokenInvalid) {
+    $showRss = false;
+    $showWeather = false;
+}
 
 // The news ticker is the most frequent repaint on the page — it pages every ten
 // seconds — and on a battery-powered panel that dominates everything else. It is
@@ -217,6 +225,48 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
 
         .bar.fill {
             background: #666; /* Filled bar */
+        }
+
+        /* ---------- ERROR STATE ---------- */
+        .error-state {
+            justify-content: center;
+            align-items: flex-start;
+            padding: 12px 48px;
+        }
+
+        .error-title {
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+
+        .error-body {
+            font-size: 26px;
+            line-height: 1.5;
+            color: #333;
+            max-width: 820px;
+        }
+
+        .error-hint {
+            margin-top: 28px;
+            font-size: 18px;
+            color: #666;
+            border-top: 2px solid #000;
+            padding-top: 14px;
+        }
+
+        /* A recoverable problem is a strip rather than a page: inverted, because
+           colour carries no meaning on a monochrome display. */
+        .token-warning {
+            padding: 6px 48px;
+            background: #000;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         /* ---------- MAIN ---------- */
@@ -626,10 +676,28 @@ if ($usingDemoCalendar && $devBatt === null && $devSig === null) {
         </div>
     </div>
 
+    <?php if ($ctx->roomFallback): ?>
+    <div class="token-warning"><?= $lang === 'fr'
+        ? "Salle inconnue — configuration par défaut affichée"
+        : 'Unknown room — showing the default configuration' ?></div>
+    <?php endif; ?>
+
     <!-- ================= MAIN ================= -->
+    <?php if ($tokenInvalid): ?>
+    <div class="main error-state">
+        <div class="error-title"><?= $lang === 'fr' ? "Lien non reconnu" : 'Link not recognised' ?></div>
+        <div class="error-body"><?= $lang === 'fr'
+            ? "Le jeton d'accès de cet écran ne correspond à aucun compte. Aucun calendrier n'est affiché."
+            : "This display's access token does not match any account. No schedule is being shown." ?></div>
+        <div class="error-hint"><?= $lang === 'fr'
+            ? "Vérifiez l'URL personnelle dans le tableau de bord. Les paramètres se séparent par &amp; et non par ?."
+            : 'Check the personal URL in the management dashboard. Parameters are separated by &amp;, not ?.' ?></div>
+    </div>
+    <?php else: ?>
     <div class="main">
         <div id="status" class="status">Loading…</div>
     </div>
+    <?php endif; ?>
 
     <!-- ================= FOOTER ================= -->
     <?php if ($showRss || $showWeatherWidget): ?>
@@ -676,6 +744,7 @@ const showRss = <?= $showRss ? 'true' : 'false' ?>;
 const showWeather = <?= $showWeather ? 'true' : 'false' ?>;
 const showClock = <?= $showClock ? 'true' : 'false' ?>;
 const powerSave = <?= $powerSave ? 'true' : 'false' ?>;
+const tokenInvalid = <?= $tokenInvalid ? 'true' : 'false' ?>;
 const showWeatherWidget = <?= $showWeatherWidget ? 'true' : 'false' ?>;
 const weatherLat = <?= (float)$weatherLat ?>;
 const weatherLon = <?= (float)$weatherLon ?>;
@@ -1256,7 +1325,7 @@ function renderEventInfo(data, eventEl, t) {
 /* ---------- FETCH CALENDAR ---------- */
 const userIdParam = urlParams.get('userid') ? `&userid=${encodeURIComponent(urlParams.get('userid'))}` : '';
 const calOverrides = urlParams.getAll('cal').map(c => `&cal=${encodeURIComponent(c)}`).join('');
-fetch(`./calendar.php?room=${roomId}${userIdParam}${calOverrides}`)
+if (!tokenInvalid) fetch(`./calendar.php?room=${roomId}${userIdParam}${calOverrides}`)
   .then(r => r.json())
   .then(data => {
     lastData = data;
