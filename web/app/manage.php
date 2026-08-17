@@ -372,21 +372,27 @@ if ($_SESSION['is_admin']) {
             // to characters that are safe in both places.
             $error = "Room keys may contain only lowercase letters, numbers, hyphens and underscores.";
         } else {
+            // Empty means "follow the site default"; anything else must be a known language.
+            $roomLang = (string)($_POST['lang'] ?? '');
+            if (!in_array($roomLang, LibreContext::LANGUAGES, true)) {
+                $roomLang = '';
+            }
+
             $urls = array_filter(array_map('trim', explode("\n", $_POST['calendar_urls'])));
             if (!empty($_POST['room_id'])) {
-                $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
+                $stmt = $pdo->prepare("UPDATE rooms SET room_key=?, name=?, calendar_url=?, view=?, time_format=?, timezone=?, lang=?, show_rss=?, show_weather=?, weather_lat=?, weather_lon=?, weather_city=?, past_horizon=?, future_horizon=? WHERE id=?");
                 $stmt->execute([
-                    $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
-                    isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0, 
+                    $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'], $roomLang,
+                    isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                     $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'], 
                     $_POST['past_horizon'], $_POST['future_horizon'], $_POST['room_id']
                 ]);
                 $message = "Room updated!";
             } else {
-                $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO rooms (room_key, name, calendar_url, view, time_format, timezone, lang, show_rss, show_weather, weather_lat, weather_lon, weather_city, past_horizon, future_horizon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 try {
                     $stmt->execute([
-                        $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'],
+                        $roomKey, $_POST['name'], json_encode($urls), $_POST['view'], $_POST['time_format'], $_POST['timezone'], $roomLang,
                         isset($_POST['show_rss']) ? 1 : 0, isset($_POST['show_weather']) ? 1 : 0,
                         $_POST['weather_lat'], $_POST['weather_lon'], $_POST['weather_city'],
                         $_POST['past_horizon'], $_POST['future_horizon']
@@ -763,7 +769,15 @@ $allTimezones = DateTimeZone::listIdentifiers();
                     </div>
                     <div class="form-group">
                         <label>Timezone Override</label>
-                        <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London" value="<?= htmlspecialchars((string)($editRoom['timezone'] ?? '')) ?>">
+                        <input type="text" name="timezone" list="timezone-list" placeholder="e.g. Europe/London" value="<?= e($editRoom['timezone'] ?? '') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Language</label>
+                        <select name="lang">
+                            <option value="" <?= ($editRoom['lang'] ?? '') === '' ? 'selected' : '' ?>>Site Default</option>
+                            <option value="en" <?= ($editRoom['lang'] ?? '') === 'en' ? 'selected' : '' ?>>English</option>
+                            <option value="fr" <?= ($editRoom['lang'] ?? '') === 'fr' ? 'selected' : '' ?>>Français</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Options</label>

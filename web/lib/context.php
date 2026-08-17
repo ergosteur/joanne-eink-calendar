@@ -79,6 +79,10 @@ class LibreContext
         $ctx->roomConfig = $room;
 
         $ctx->lang = (string)($config['ui']['lang'] ?? 'en');
+        // Empty means "follow the site default" rather than naming a language.
+        if (in_array((string)($room['lang'] ?? ''), self::LANGUAGES, true)) {
+            $ctx->lang = (string)$room['lang'];
+        }
         $ctx->view = (string)($room['view'] ?? 'room');
         $ctx->displayName = (string)($room['display_name'] ?? '');
         $ctx->timeFormat = ((string)($room['time_format'] ?? '')) ?: 'auto';

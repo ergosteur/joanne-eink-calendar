@@ -67,6 +67,7 @@ class LibreDb {
             view TEXT DEFAULT 'room',
             time_format TEXT DEFAULT 'auto',
             timezone TEXT,
+            lang TEXT,
             show_rss INTEGER DEFAULT 1,
             show_weather INTEGER DEFAULT 1,
             weather_lat REAL,
@@ -107,6 +108,7 @@ class LibreDb {
         $this->ensureColumn('rooms', 'future_horizon', 'INTEGER');
         $this->ensureColumn('rooms', 'time_format', 'TEXT');
         $this->ensureColumn('rooms', 'timezone', 'TEXT');
+        $this->ensureColumn('rooms', 'lang', 'TEXT');
     }
 
     private function ensureColumn($table, $column, $type) {
@@ -140,6 +142,7 @@ class LibreDb {
             $room['future_horizon'] = (int)($room['future_horizon'] ?: 30);
             $room['time_format'] = (string)($room['time_format'] ?: 'auto');
             $room['timezone'] = (string)($room['timezone'] ?? '');
+            $room['lang'] = (string)($room['lang'] ?? '');
         }
         return $room;
     }
