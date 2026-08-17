@@ -86,6 +86,46 @@ It fails on PHP diagnostics rendered into a response body, which a status-code c
 would miss. It passes offline: endpoints that depend on a remote API assert a
 well-formed response, not live data.
 
+## Deployment
+
+`scripts/deploy-joanne.sh` deploys or updates a checkout on a server. It is written for
+a shared-hosting layout with SSH and git, and every path is overridable by environment
+variable (`JOANNE_APP_DIR`, `JOANNE_LINK`, `JOANNE_HEALTH_URL`, `JOANNE_REPO`).
+
+```bash
+~/scripts/deploy-joanne.sh              # redeploy whatever ref is already live
+~/scripts/deploy-joanne.sh main         # switch to a branch, tag or commit
+~/scripts/deploy-joanne.sh --status     # what is deployed, and is it healthy
+```
+
+**The checkout must live outside the web root.** The script keeps it in `~/apps/joanne`
+and publishes only `web/app` through a symlink:
+
+```text
+~/apps/joanne                    checkout, no URL
+~/htdocs/<site>/joanne  ->  ~/apps/joanne/web/app
+```
+
+This matters because `web/data/.htaccess` protects nothing on nginx or any other server
+that does not read `.htaccess`. If the checkout sits inside the web root there, the
+SQLite database and `config.php` — which holds the encryption key — are downloadable.
+Keeping `web/data` outside the published tree means those files have no URL at all,
+whatever the server is.
+
+On first run the script generates `web/data/config.php` with a random encryption key and
+setup password, inheriting all other defaults from `config.sample.php`. It is never
+regenerated: **changing `encryption_key` makes every stored calendar URL undecryptable.**
+`web/data` is git-ignored, so the config, database and caches survive every update.
+
+After deploying it verifies the result: it lints, checks the page and `calendar.php`,
+greps the response for PHP diagnostics, and probes the private paths to confirm they are
+still unreachable. Note that it does not follow redirects when probing, since a host may
+redirect unknown paths rather than returning 404.
+
+If PHP-FPM runs as a different user than the SSH account, as it commonly does, the two
+must share a group: `web/data` is created group-writable and setgid so both can maintain
+it, and `config.php` is group-readable so PHP can load it.
+
 ## URL Parameter Overrides
 
 You can override most configuration settings via URL parameters for testing or specific device needs:
