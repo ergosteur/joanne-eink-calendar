@@ -55,6 +55,20 @@ class LibreContext
     /** True when the resolved feed list includes the bundled demo generator. */
     public bool $usingDemoCalendar = false;
 
+    /**
+     * A token was supplied but matched no account. The panel still renders, but it is
+     * showing the default schedule rather than anyone's, so the UI says so instead of
+     * looking as though it worked.
+     */
+    public bool $tokenInvalid = false;
+
+    /**
+     * A room key was asked for that exists neither in the database nor in config, so
+     * the default room is standing in. Documented behaviour, but a panel pointed at a
+     * mistyped key should still say so rather than look correct.
+     */
+    public bool $roomFallback = false;
+
     public const VIEWS = ['room', 'dashboard', 'grid'];
     public const LANGUAGES = ['en', 'fr'];
 
@@ -69,6 +83,8 @@ class LibreContext
     {
         $ctx = new self();
 
+        $query = self::recoverStrandedParams($query);
+
         $token = isset($query['userid']) && $query['userid'] !== '' ? (string)$query['userid'] : '';
 
         // A token always implies the personal context, whatever ?room= says.
@@ -80,6 +96,9 @@ class LibreContext
         if ($room) {
             $ctx->isDatabaseRoom = true;
         } else {
+            if (!isset($config['rooms'][$ctx->roomId]) && isset($query['room'])) {
+                $ctx->roomFallback = true;
+            }
             $room = $config['rooms'][$ctx->roomId] ?? $config['rooms']['default'] ?? [];
         }
         $ctx->roomConfig = $room;
@@ -113,6 +132,7 @@ class LibreContext
             );
             $stmt->execute([$token]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            $ctx->tokenInvalid = $user === null;
         }
 
         if ($user) {
@@ -213,6 +233,38 @@ class LibreContext
         }
 
         return $ctx;
+    }
+
+    /**
+     * Recover parameters stranded by a "?" used where "&" belongs.
+     *
+     * Device URLs are assembled by hand, and
+     *     ?userid=abc123?view=grid
+     * makes PHP read the token as "abc123?view=grid". Nothing matches, and the panel
+     * quietly renders a generic view that looks perfectly fine — the failure is
+     * invisible precisely where it matters most.
+     *
+     * The value is split at the first separator and the remainder parsed back into the
+     * query. Parameters supplied properly keep precedence over recovered ones.
+     */
+    private static function recoverStrandedParams(array $query): array
+    {
+        foreach (['userid', 'room'] as $key) {
+            if (!isset($query[$key]) || !is_string($query[$key])) {
+                continue;
+            }
+            $parts = preg_split('/[?&]/', $query[$key], 2);
+            if (count($parts) !== 2 || $parts[1] === '') {
+                continue;
+            }
+            $stranded = [];
+            parse_str($parts[1], $stranded);
+            $query[$key] = $parts[0];
+            if ($stranded) {
+                $query = $query + $stranded; // existing keys win
+            }
+        }
+        return $query;
     }
 
     /**
