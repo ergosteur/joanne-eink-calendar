@@ -727,10 +727,10 @@ function updateLabels() {
   
   if (isPersonalizedUser) {
     headerLabel = displayName || (rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName);
-    statusLabel = displayName || t.Now;
+    statusLabel = displayName || t.Today;
   } else {
     headerLabel = rawRoomName === "My Schedule" ? t.MySchedule : rawRoomName;
-    statusLabel = t.Now;
+    statusLabel = t.Today;
   }
 }
 
@@ -794,7 +794,6 @@ function formatTime(input) {
 
 const i18n = {
   en: {
-    Now: "Now",
     AVAILABLE: "AVAILABLE",
     IN_USE: "IN USE",
     Next: "Next",
@@ -812,7 +811,6 @@ const i18n = {
     MySchedule: "My Schedule"
   },
   fr: {
-    Now: "En cours",
     AVAILABLE: "DISPONIBLE",
     IN_USE: "OCCUPÉ",
     Next: "Prochain",
